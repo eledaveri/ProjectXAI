@@ -1,11 +1,13 @@
 # ProjectXAI
 
+```
 project/
 │
 ├── data_utils.py          # Data loading and pre-processing
 ├── model_utils.py         # Training function, cross-validation and SHAP
 ├── main.py                # Main script
 └── dataset_A.csv
+```
 
 ## MODEL PERFORMAMCES
 
