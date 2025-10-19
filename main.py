@@ -7,9 +7,6 @@ def main():
 
     cross_validate_model(X_train, y_train, groups_train, le)
     model = train_final_model(X_train, y_train, num_classes=4)
-    print("Numero di classi nel modello:", model.n_classes_)
-    print("Classi uniche nel training set:", len(np.unique(y_train)))
-
     evaluate_model(model, X_test, y_test, le)
 
     # Usa un piccolo campione per SHAP

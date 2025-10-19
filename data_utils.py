@@ -7,24 +7,20 @@ def load_and_preprocess_data(csv_path: str):
     df = pd.read_csv(csv_path)
     df["sex"] = df["sex"].map({"M": 0, "F": 1})
 
-    print("Distribuzione delle classi nel dataset:")
-    print(df["type"].value_counts())
-
-    print("Numero pazienti per tipo:")
+    print("Number of unique patients per class:")
     print(df.groupby("type")["patient"].nunique())
 
-    # Separazione variabili
     X = df.drop(columns=["type"])
     y = df["type"]
     groups = df["patient"]
 
-    # Encoding del target
+    # Target encoding
     le = LabelEncoder()
     y_encoded = le.fit_transform(y)
-    print("Valori unici nel target (y_encoded):", np.unique(y_encoded))
-    print("Numero di classi:", len(np.unique(y_encoded)))
+    print("Target unique values:", np.unique(y_encoded))
+    print("Number of classes:", len(np.unique(y_encoded)))
 
-    # Split pazienti in train/test
+    # Train-test split
     unique_patients = df["patient"].unique()
     train_patients, test_patients = train_test_split(
         unique_patients,

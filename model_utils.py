@@ -3,9 +3,16 @@ from sklearn.model_selection import StratifiedGroupKFold
 from xgboost import XGBClassifier
 import shap
 import matplotlib.pyplot as plt
+import os
 
 
 def create_xgb_model(num_classes=4):
+    """Create an XGBClassifier with specified parameters.
+    Args:
+        num_classes: Number of unique classes in the target variable.
+    Returns:
+        Configured XGBClassifier instance.
+    """
     return XGBClassifier(
         objective="multi:softmax",
         num_class=num_classes,
@@ -20,6 +27,13 @@ def create_xgb_model(num_classes=4):
     )
 
 def cross_validate_model(X_train, y_train, groups_train, label_encoder):
+    """Execute Stratified Group K-Fold Cross-Validation and print classification reports.
+    Args:
+        X_train: Training features.
+        y_train: Training labels.
+        groups_train: Group labels for the training set.
+        label_encoder: Fitted LabelEncoder for decoding class labels.    
+    """
     sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
 
     for fold, (train_index, val_index) in enumerate(
@@ -42,13 +56,21 @@ def cross_validate_model(X_train, y_train, groups_train, label_encoder):
         ))
 
 def train_final_model(X_train, y_train, num_classes):
+    """Train the final model on the entire training set.
+    Args:
+        X_train: Training features.
+        y_train: Training labels.
+        num_classes: Number of unique classes in the target variable.
+    Returns:
+        Trained XGBClassifier model.
+    """
     model = create_xgb_model(num_classes)
     model.fit(X_train, y_train)
-    print(f"✅ Modello finale addestrato con {num_classes} classi.")
+    print(f"Final model trained with {num_classes} classes.")
     return model
 
 def evaluate_model(model, X_test, y_test, label_encoder):
-    print("\nRisultati sul test set:")
+    print("\nResults on test set:")
     y_pred = model.predict(X_test)
     print(classification_report(
         y_test,
@@ -59,49 +81,108 @@ def evaluate_model(model, X_test, y_test, label_encoder):
     ))
 
 def explain_with_shap(model, X_sample, save_prefix="results/shap"):
-    """Calcola e salva grafici SHAP come PNG (compatibile con SHAP 0.49 e multi-class)"""
-
+    """Compute SHAP values and generate explanation plots.
+    Args:
+        model: Trained model to explain.
+        X_sample: Sample of input data for SHAP explanations.
+        save_prefix: Prefix for saving SHAP plots.
+    Returns:
+        SHAP values array.
+    """
+    # TreeExplainer for XGBoost
     explainer = shap.TreeExplainer(model)
     shap_values = explainer(X_sample)
-
-    # Se l'oggetto non è un Explanation, lo convertiamo
-    if not isinstance(shap_values, shap.Explanation):
-        shap_values = shap.Explanation(values=shap_values, data=X_sample)
-
-    # --- Gestione multi-class ---
+    
+    print(f"Debug shape:")
+    print(f"shap_values type: {type(shap_values)}")
+    print(f"shap_values.values shape: {shap_values.values.shape}")
+    print(f"X_sample shape: {X_sample.shape}")
+    
+    # --- Multi-class---
+    # XGBoost multi-class, shap_values.values has shape (n_samples, n_features, n_classes)
+    # or (n_samples, n_classes, n_features) depending on version.
+    
     if shap_values.values.ndim == 3:
-        # (n_sample, n_class, n_feature)
-        n_classes = shap_values.values.shape[1]
-        print(f"🔹 Rilevato modello multi-classe con {n_classes} classi.")
-        # scegliamo la classe 0 (puoi modificarla)
-        class_idx = 0  
-        shap_values_class = shap.Explanation(
-            values=shap_values.values[:, class_idx, :],
-            base_values=shap_values.base_values[:, class_idx] if shap_values.base_values.ndim > 1 else shap_values.base_values,
-            data=shap_values.data,
-            feature_names=shap_values.feature_names,
-        )
+        # Determine the shape format
+        n_features = X_sample.shape[1]
+        shape = shap_values.values.shape
+        
+        # Check which dimension corresponds to features
+        if shape[1] == n_features:
+            # Format: (n_samples, n_features, n_classes)
+            print(f"Format: (n_samples={shape[0]}, n_features={shape[1]}, n_classes={shape[2]})")
+            # Transpose to (n_samples, n_classes, n_features) if needed
+            values_transposed = shap_values.values
+            n_classes = shape[2]
+        elif shape[2] == n_features:
+            # Format: (n_samples, n_classes, n_features)
+            print(f"Format: (n_samples={shape[0]}, n_classes={shape[1]}, n_features={shape[2]})")
+            values_transposed = shap_values.values
+            n_classes = shape[1]
+        else:
+            raise ValueError(f"Cannot match n_features={n_features} with shape {shape}")
+        
+        print(f"Detect a multi-class model with {n_classes} classes.")
+        
+        # Extract SHAP values for the first class as example
+        class_idx = 0
+        if shape[1] == n_features:
+            # (n_samples, n_features, n_classes) -> (n_samples, n_features)
+            shap_values_2d = shap_values.values[:, :, class_idx]
+        else:
+            # (n_samples, n_classes, n_features) -> (n_samples, n_features)
+            shap_values_2d = shap_values.values[:, class_idx, :]
+        
+        print(f" Extracted valeus for the class {class_idx}, shape: {shap_values_2d.shape}")
+        
     else:
-        shap_values_class = shap_values
-
-    # --- Summary Plot ---
-    shap.summary_plot(shap_values_class, X_sample, show=False)
+        # Binary or already 2D
+        shap_values_2d = shap_values.values
+        print(f"Binry/2D model, shape: {shap_values_2d.shape}")
+    
+    # --- Summary Plot (Beeswarm) ---
+    plt.figure()
+    shap.summary_plot(shap_values_2d, X_sample, show=False)
     plt.tight_layout()
     plt.savefig(f"{save_prefix}_summary.png", dpi=300, bbox_inches="tight")
     plt.close()
-
+    print(f"Saved: {save_prefix}_summary.png")
+    
     # --- Bar Plot ---
-    shap.summary_plot(shap_values_class.values, X_sample, plot_type="bar", show=False)
+    plt.figure()
+    shap.summary_plot(shap_values_2d, X_sample, plot_type="bar", show=False)
     plt.tight_layout()
     plt.savefig(f"{save_prefix}_bar.png", dpi=300, bbox_inches="tight")
     plt.close()
-
-    # --- Waterfall Plot (per il primo campione e la prima classe) ---
-    shap.plots.waterfall(shap_values_class[0], show=False)
+    print(f"Saved: {save_prefix}_bar.png")
+    
+    # --- Waterfall Plot  ---
+    plt.figure()
+    # Extract base value for the selected class
+    if shap_values.base_values.ndim > 1:
+        # Multi-class: shape (n_samples, n_classes)
+        base_value = shap_values.base_values[0, class_idx]
+    elif len(shap_values.base_values) > 1:
+        # Array of base values
+        base_value = shap_values.base_values[0]
+    else:
+        # Single base value
+        base_value = float(shap_values.base_values)
+    
+    shap.plots.waterfall(
+        shap.Explanation(
+            values=shap_values_2d[0],
+            base_values=base_value,
+            data=X_sample.iloc[0].values,
+            feature_names=X_sample.columns.tolist()
+        ),
+        show=False
+    )
     plt.tight_layout()
     plt.savefig(f"{save_prefix}_waterfall.png", dpi=300, bbox_inches="tight")
     plt.close()
-
-    print(f" Grafici SHAP salvati in: {os.path.dirname(save_prefix)}/")
-
-    return shap_values_class
+    print(f"Saved: {save_prefix}_waterfall.png")
+    
+    print(f"\nAll shap graphs saved in: {os.path.dirname(save_prefix)}/")
+    
+    return shap_values_2d
