@@ -15,40 +15,40 @@ project/
 Fold 1
               precision    recall  f1-score   support
 
-       DLBCL       0.50      0.87      0.63        15
+       DLBCL       0.47      0.93      0.62        15
           FL       0.00      0.00      0.00         0
           HL       1.00      1.00      1.00        13
-         MCL       1.00      0.56      0.72        32
+         MCL       1.00      0.50      0.67        32
 
-    accuracy                           0.73        60
-   macro avg       0.62      0.61      0.59        60
-weighted avg       0.88      0.73      0.76        60
+    accuracy                           0.72        60
+   macro avg       0.62      0.61      0.57        60
+weighted avg       0.87      0.72      0.73        60
 
 
 Fold 2
               precision    recall  f1-score   support
 
-       DLBCL       0.90      0.75      0.82        12
-          FL       0.26      1.00      0.41         6
+       DLBCL       1.00      1.00      1.00        12
+          FL       0.23      0.83      0.36         6
           HL       1.00      1.00      1.00         7
-         MCL       1.00      0.63      0.78        41
+         MCL       0.96      0.59      0.73        41
 
     accuracy                           0.73        66
-   macro avg       0.79      0.85      0.75        66
-weighted avg       0.91      0.73      0.77        66
+   macro avg       0.80      0.85      0.77        66
+weighted avg       0.90      0.73      0.77        66
 
 
 Fold 3
               precision    recall  f1-score   support
 
-       DLBCL       1.00      0.24      0.38        17
-          FL       0.08      0.10      0.09        21
+       DLBCL       1.00      0.47      0.64        17
+          FL       0.07      0.10      0.08        21
           HL       1.00      1.00      1.00         1
-         MCL       0.16      0.21      0.18        29
+         MCL       0.07      0.07      0.07        29
 
     accuracy                           0.19        68
-   macro avg       0.56      0.38      0.41        68
-weighted avg       0.36      0.19      0.21        68
+   macro avg       0.53      0.41      0.45        68
+weighted avg       0.31      0.19      0.23        68
 
 
 Fold 4
@@ -67,28 +67,28 @@ weighted avg       0.50      0.21      0.30        14
 Fold 5
               precision    recall  f1-score   support
 
-       DLBCL       0.20      1.00      0.33         3
+       DLBCL       0.00      0.00      0.00         3
           FL       0.00      0.00      0.00        24
           HL       1.00      1.00      1.00        12
          MCL       0.00      0.00      0.00         0
 
-    accuracy                           0.38        39
-   macro avg       0.30      0.50      0.33        39
-weighted avg       0.32      0.38      0.33        39
+    accuracy                           0.31        39
+   macro avg       0.25      0.25      0.25        39
+weighted avg       0.31      0.31      0.31        39
 
 Final model trained with 4 classes.
 
 Results on test set:
               precision    recall  f1-score   support
 
-       DLBCL       0.86      0.67      0.75        18
-          FL       0.65      0.80      0.72        35
+       DLBCL       1.00      0.50      0.67        18
+          FL       0.88      0.80      0.84        35
           HL       1.00      1.00      1.00        13
-         MCL       0.81      0.72      0.76        36
+         MCL       0.71      0.94      0.81        36
 
-    accuracy                           0.77       102
-   macro avg       0.83      0.80      0.81       102
-weighted avg       0.79      0.77      0.78       102
+    accuracy                           0.82       102
+   macro avg       0.90      0.81      0.83       102
+weighted avg       0.85      0.82      0.82       102
 ```
 
 ## SHAP RESULTS
