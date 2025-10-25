@@ -104,7 +104,7 @@ weighted avg       0.85      0.82      0.82       102
     ![shap_summary](results/shap_summary.png)
 
 3. **`shap_waterfall.png`**:
-    ![shap_waterfall](results/shap_waterfall.png)
+    ![shap_waterfall](results/shap_all_features_waterfall.png)
 
 ### TOP5 SHAP FEATURES
 
@@ -195,3 +195,8 @@ Results on test set:
    macro avg       0.90      0.80      0.82       102
 weighted avg       0.87      0.82      0.82       102
 ```
+
+## PERFORMANCE COMPARISON
+
+**`model_comparison.png`**: 
+   ![model_comparison](results/model_comparison.png)
