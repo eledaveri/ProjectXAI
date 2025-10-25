@@ -104,6 +104,7 @@ weighted avg       0.85      0.82      0.82       102
     ![shap_summary](results/shap_summary.png)
 
 3. **`shap_waterfall.png`**:
+    ![shap_waterfall](results/shap_waterfall.png)
 
 ### TOP5 SHAP FEATURES
 
