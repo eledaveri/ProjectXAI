@@ -4,7 +4,7 @@ from xgboost import XGBClassifier
 import shap
 import matplotlib.pyplot as plt
 import os
-
+import numpy as np  
 
 def create_xgb_model(num_classes=4):
     """Create an XGBClassifier with specified parameters.
@@ -186,3 +186,24 @@ def explain_with_shap(model, X_sample, save_prefix="results/shap"):
     print(f"\nAll shap graphs saved in: {os.path.dirname(save_prefix)}/")
     
     return shap_values_2d
+
+def get_top_shap_features(shap_values_2d, feature_names, top_n=5):
+    """Extract the top N most important features based on mean absolute SHAP values.
+    
+    Args:
+        shap_values_2d: 2D array of SHAP values (n_samples, n_features)
+        feature_names: List of feature names
+        top_n: Number of top features to return
+    
+    Returns:
+        List of top feature names
+    """
+    mean_abs_shap = np.abs(shap_values_2d).mean(axis=0)
+    top_indices = np.argsort(mean_abs_shap)[-top_n:][::-1]
+    top_features = [feature_names[i] for i in top_indices]
+    
+    print(f"\nTop {top_n} features by SHAP importance:")
+    for i, (feat, importance) in enumerate(zip(top_features, mean_abs_shap[top_indices])):
+        print(f"  {i+1}. {feat}: {importance:.4f}")
+    
+    return top_features
