@@ -1,314 +1,227 @@
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
-from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
-import pandas as pd
+"""
+Logging utilities for lymphoma classification project.
 
-def plot_model_comparison(y_test, y_pred_full, y_pred_reduced, classes, 
-                         save_path="results/model_comparison.png"):
+This module provides formatted printing functions for:
+- Dataset information and statistics
+- Train/test split details
+- Cross-validation progress
+- Model evaluation results
+- Feature importance analysis
+"""
+
+import numpy as np
+from collections import Counter
+
+
+def print_separator(title="", width=80):
     """
-    Crea un grafico completo per confrontare modello completo vs ridotto.
+    Print a formatted section separator.
     
     Args:
-        y_test: True labels
-        y_pred_full: Predictions from full model (110 features)
-        y_pred_reduced: Predictions from reduced model (5 features)
-        classes: List of class names
-        save_path: Path to save the plot
+        title: Optional section title to center in the separator
+        width: Total width of the separator line
     """
-    fig = plt.figure(figsize=(18, 12))
-    
-    # ============================================
-    # 1. CONFUSION MATRICES (prima riga)
-    # ============================================
-    
-    # Full model confusion matrix
-    ax1 = plt.subplot(3, 2, 1)
-    cm_full = confusion_matrix(y_test, y_pred_full)
-    sns.heatmap(cm_full, annot=True, fmt='d', cmap='Blues', 
-               xticklabels=classes, yticklabels=classes, ax=ax1,
-               cbar_kws={'label': 'Count'})
-    ax1.set_title('Full Model (110 features)\nConfusion Matrix', 
-                  fontsize=13, fontweight='bold')
-    ax1.set_ylabel('True Label', fontsize=11)
-    ax1.set_xlabel('Predicted Label', fontsize=11)
-    
-    # Reduced model confusion matrix
-    ax2 = plt.subplot(3, 2, 2)
-    cm_reduced = confusion_matrix(y_test, y_pred_reduced)
-    sns.heatmap(cm_reduced, annot=True, fmt='d', cmap='Greens', 
-               xticklabels=classes, yticklabels=classes, ax=ax2,
-               cbar_kws={'label': 'Count'})
-    ax2.set_title('Reduced Model (5 features)\nConfusion Matrix', 
-                  fontsize=13, fontweight='bold')
-    ax2.set_ylabel('True Label', fontsize=11)
-    ax2.set_xlabel('Predicted Label', fontsize=11)
-    
-    # ============================================
-    # 2. F1-SCORE PER CLASSE (seconda riga)
-    # ============================================
-    ax3 = plt.subplot(3, 2, 3)
-    
-    # Calcola F1 per entrambi i modelli
-    _, _, f1_full, support = precision_recall_fscore_support(
-        y_test, y_pred_full, labels=range(len(classes)), zero_division=0
-    )
-    _, _, f1_reduced, _ = precision_recall_fscore_support(
-        y_test, y_pred_reduced, labels=range(len(classes)), zero_division=0
-    )
-    
-    x = np.arange(len(classes))
-    width = 0.35
-    
-    bars1 = ax3.bar(x - width/2, f1_full, width, label='Full (110 feat)', 
-                    alpha=0.8, color='steelblue')
-    bars2 = ax3.bar(x + width/2, f1_reduced, width, label='Reduced (5 feat)', 
-                    alpha=0.8, color='seagreen')
-    
-    # Aggiungi valori sopra le barre
-    for bars in [bars1, bars2]:
-        for bar in bars:
-            height = bar.get_height()
-            ax3.text(bar.get_x() + bar.get_width()/2., height,
-                    f'{height:.2f}',
-                    ha='center', va='bottom', fontsize=9)
-    
-    ax3.set_xlabel('Class', fontsize=11, fontweight='bold')
-    ax3.set_ylabel('F1-Score', fontsize=11, fontweight='bold')
-    ax3.set_title('F1-Score Comparison by Class', fontsize=13, fontweight='bold')
-    ax3.set_xticks(x)
-    ax3.set_xticklabels(classes)
-    ax3.legend()
-    ax3.set_ylim(0, 1.1)
-    ax3.grid(axis='y', alpha=0.3)
-    ax3.axhline(y=0.8, color='green', linestyle='--', alpha=0.5, linewidth=1)
-    
-    # Aggiungi sample support
-    ax3_twin = ax3.twiny()
-    ax3_twin.set_xlim(ax3.get_xlim())
-    ax3_twin.set_xticks(x)
-    ax3_twin.set_xticklabels([f'n={s}' for s in support], fontsize=9, color='gray')
-    
-    # ============================================
-    # 3. PRECISION E RECALL (seconda riga, destra)
-    # ============================================
-    ax4 = plt.subplot(3, 2, 4)
-    
-    prec_full, rec_full, _, _ = precision_recall_fscore_support(
-        y_test, y_pred_full, labels=range(len(classes)), zero_division=0
-    )
-    prec_reduced, rec_reduced, _, _ = precision_recall_fscore_support(
-        y_test, y_pred_reduced, labels=range(len(classes)), zero_division=0
-    )
-    
-    x = np.arange(len(classes))
-    width = 0.2
-    
-    ax4.bar(x - width*1.5, prec_full, width, label='Precision (Full)', 
-            alpha=0.8, color='#1f77b4')
-    ax4.bar(x - width*0.5, rec_full, width, label='Recall (Full)', 
-            alpha=0.8, color='#ff7f0e')
-    ax4.bar(x + width*0.5, prec_reduced, width, label='Precision (Reduced)', 
-            alpha=0.8, color='#2ca02c')
-    ax4.bar(x + width*1.5, rec_reduced, width, label='Recall (Reduced)', 
-            alpha=0.8, color='#d62728')
-    
-    ax4.set_xlabel('Class', fontsize=11, fontweight='bold')
-    ax4.set_ylabel('Score', fontsize=11, fontweight='bold')
-    ax4.set_title('Precision & Recall by Class', fontsize=13, fontweight='bold')
-    ax4.set_xticks(x)
-    ax4.set_xticklabels(classes)
-    ax4.legend(fontsize=9, loc='lower left')
-    ax4.set_ylim(0, 1.1)
-    ax4.grid(axis='y', alpha=0.3)
-    
-    # ============================================
-    # 4. METRICHE AGGREGATE (terza riga, sinistra)
-    # ============================================
-    ax5 = plt.subplot(3, 2, 5)
-    
-    # Calcola metriche aggregate
-    metrics_data = []
-    for model_name, y_pred in [('Full\n(110 feat)', y_pred_full), 
-                                ('Reduced\n(5 feat)', y_pred_reduced)]:
-        precision, recall, f1, _ = precision_recall_fscore_support(
-            y_test, y_pred, labels=range(len(classes)), average='weighted', zero_division=0
-        )
-        accuracy = (y_test == y_pred).mean()
-        
-        metrics_data.append({
-            'Model': model_name,
-            'Accuracy': accuracy,
-            'Precision': precision,
-            'Recall': recall,
-            'F1-Score': f1
-        })
-    
-    df_metrics = pd.DataFrame(metrics_data)
-    
-    x_agg = np.arange(len(metrics_data))
-    width_agg = 0.2
-    metrics_to_plot = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
-    
-    for i, metric in enumerate(metrics_to_plot):
-        offset = width_agg * (i - len(metrics_to_plot)/2 + 0.5)
-        bars = ax5.bar(x_agg + offset, df_metrics[metric], width_agg, 
-                      label=metric, alpha=0.8, color=colors[i])
-        
-        # Valori sopra le barre
-        for bar in bars:
-            height = bar.get_height()
-            ax5.text(bar.get_x() + bar.get_width()/2., height,
-                    f'{height:.3f}',
-                    ha='center', va='bottom', fontsize=8, rotation=0)
-    
-    ax5.set_xlabel('Model', fontsize=11, fontweight='bold')
-    ax5.set_ylabel('Score', fontsize=11, fontweight='bold')
-    ax5.set_title('Weighted Average Metrics', fontsize=13, fontweight='bold')
-    ax5.set_xticks(x_agg)
-    ax5.set_xticklabels(df_metrics['Model'])
-    ax5.legend(fontsize=9)
-    ax5.set_ylim(0, 1.1)
-    ax5.grid(axis='y', alpha=0.3)
-    ax5.axhline(y=0.8, color='green', linestyle='--', alpha=0.5, linewidth=1)
-    
-    # ============================================
-    # 5. DIFFERENZE (terza riga, destra)
-    # ============================================
-    ax6 = plt.subplot(3, 2, 6)
-    
-    # Calcola differenze (Reduced - Full)
-    diff_f1 = f1_reduced - f1_full
-    diff_prec = prec_reduced - prec_full
-    diff_rec = rec_reduced - rec_full
-    
-    x = np.arange(len(classes))
-    width = 0.25
-    
-    bars1 = ax6.bar(x - width, diff_prec, width, label='Δ Precision', 
-                   alpha=0.8, color='#ff7f0e')
-    bars2 = ax6.bar(x, diff_rec, width, label='Δ Recall', 
-                   alpha=0.8, color='#2ca02c')
-    bars3 = ax6.bar(x + width, diff_f1, width, label='Δ F1-Score', 
-                   alpha=0.8, color='#d62728')
-    
-    # Aggiungi valori sopra/sotto le barre
-    for bars in [bars1, bars2, bars3]:
-        for bar in bars:
-            height = bar.get_height()
-            label_y = height + 0.01 if height >= 0 else height - 0.01
-            va = 'bottom' if height >= 0 else 'top'
-            ax6.text(bar.get_x() + bar.get_width()/2., label_y,
-                    f'{height:+.2f}',
-                    ha='center', va=va, fontsize=8)
-    
-    ax6.set_xlabel('Class', fontsize=11, fontweight='bold')
-    ax6.set_ylabel('Difference (Reduced - Full)', fontsize=11, fontweight='bold')
-    ax6.set_title('Performance Differences\n(Positive = Reduced Better)', 
-                  fontsize=13, fontweight='bold')
-    ax6.set_xticks(x)
-    ax6.set_xticklabels(classes)
-    ax6.legend(fontsize=9)
-    ax6.axhline(y=0, color='black', linestyle='-', linewidth=1)
-    ax6.grid(axis='y', alpha=0.3)
-    
-    # Limiti dinamici per mostrare bene le differenze
-    max_diff = max(abs(diff_prec.max()), abs(diff_rec.max()), abs(diff_f1.max()))
-    ax6.set_ylim(-max_diff*1.3, max_diff*1.3)
-    
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    print(f"  Saved model comparison: {save_path}")
+    if title:
+        padding = (width - len(title) - 2) // 2
+        print("\n" + "=" * padding + f" {title} " + "=" * padding)
+    else:
+        print("\n" + "=" * width)
 
 
-def create_comparison_summary(y_test, y_pred_full, y_pred_reduced, classes,
-                             save_path="results/comparison_summary.txt"):
-    """Crea un report testuale del confronto."""
+def print_dataset_info(X, y, p_ids, feat):
+    """
+    Print comprehensive dataset statistics.
     
-    with open(save_path, 'w') as f:
-        f.write("="*80 + "\n")
-        f.write("MODEL COMPARISON SUMMARY\n")
-        f.write("Full Model (110 features) vs Reduced Model (5 features)\n")
-        f.write("="*80 + "\n\n")
-        
-        # Metriche aggregate
-        for model_name, y_pred in [('FULL MODEL (110 features)', y_pred_full),
-                                    ('REDUCED MODEL (5 features)', y_pred_reduced)]:
-            f.write(f"\n{model_name}\n")
-            f.write("-"*80 + "\n")
-            
-            precision, recall, f1, support = precision_recall_fscore_support(
-                y_test, y_pred, labels=range(len(classes)), zero_division=0
-            )
-            accuracy = (y_test == y_pred).mean()
-            
-            # Aggregate
-            prec_avg, rec_avg, f1_avg, _ = precision_recall_fscore_support(
-                y_test, y_pred, average='weighted', zero_division=0
-            )
-            
-            f.write(f"\nWeighted Average Metrics:\n")
-            f.write(f"  Accuracy:  {accuracy:.4f}\n")
-            f.write(f"  Precision: {prec_avg:.4f}\n")
-            f.write(f"  Recall:    {rec_avg:.4f}\n")
-            f.write(f"  F1-Score:  {f1_avg:.4f}\n")
-            
-            # Per classe
-            f.write(f"\nPer-Class Metrics:\n")
-            f.write(f"{'Class':<12} {'Precision':<12} {'Recall':<12} {'F1-Score':<12} {'Support':<10}\n")
-            f.write("-"*60 + "\n")
-            
-            for i, cls in enumerate(classes):
-                f.write(f"{cls:<12} {precision[i]:<12.4f} {recall[i]:<12.4f} "
-                       f"{f1[i]:<12.4f} {support[i]:<10}\n")
-        
-        # Confronto
-        f.write(f"\n\n{'='*80}\n")
-        f.write(f"PERFORMANCE DIFFERENCES (Reduced - Full)\n")
-        f.write(f"{'='*80}\n\n")
-        
-        prec_full, rec_full, f1_full, _ = precision_recall_fscore_support(
-            y_test, y_pred_full, labels=range(len(classes)), zero_division=0
-        )
-        prec_red, rec_red, f1_red, _ = precision_recall_fscore_support(
-            y_test, y_pred_reduced, labels=range(len(classes)), zero_division=0
-        )
-        
-        acc_full = (y_test == y_pred_full).mean()
-        acc_red = (y_test == y_pred_reduced).mean()
-        
-        f.write(f"Overall Accuracy Difference: {acc_red - acc_full:+.4f}\n")
-        f.write(f"  Full:    {acc_full:.4f}\n")
-        f.write(f"  Reduced: {acc_red:.4f}\n\n")
-        
-        f.write(f"Per-Class F1-Score Differences:\n")
-        f.write(f"{'Class':<12} {'Full F1':<12} {'Reduced F1':<12} {'Difference':<12}\n")
-        f.write("-"*50 + "\n")
-        
-        for i, cls in enumerate(classes):
-            diff = f1_red[i] - f1_full[i]
-            f.write(f"{cls:<12} {f1_full[i]:<12.4f} {f1_red[i]:<12.4f} {diff:+12.4f}\n")
-        
-        # Interpretazione
-        f.write(f"\n\n{'='*80}\n")
-        f.write(f"INTERPRETATION\n")
-        f.write(f"{'='*80}\n\n")
-        
-        avg_diff = np.mean(np.abs(f1_red - f1_full))
-        
-        if avg_diff < 0.05:
-            f.write("   The reduced model performs similarly to the full model.\n")
-            f.write("   This confirms that the 5 selected features capture most of the\n")
-            f.write("   discriminative information.\n")
-        elif acc_red > acc_full:
-            f.write("   The reduced model slightly outperforms the full model.\n")
-            f.write("   This suggests the full model may have some overfitting,\n")
-            f.write("   and feature selection improved generalization.\n")
-        else:
-            f.write("   The reduced model shows some performance degradation.\n")
-            f.write("   Consider including more features or investigating which\n")
-            f.write("   classes are most affected.\n")
+    Args:
+        X: Feature matrix (DataFrame or array)
+        y: Target labels
+        p_ids: Patient IDs
+        feat: List of feature names
+    """
+    print_separator("DATASET INFORMATION")
     
-    print(f" Saved comparison summary: {save_path}")
+    unique_patients = np.unique(p_ids)
+    n_patients = len(unique_patients)
+    n_vois = len(y)
+    n_features = len(feat)
+    
+    print(f"Total patients: {n_patients}")
+    print(f"Total VOIs (instances): {n_vois}")
+    print(f"Average VOIs per patient: {n_vois/n_patients:.2f}")
+    print(f"Number of features: {n_features}")
+    
+    # VOI-level class distribution
+    n_positive = np.sum(y)
+    n_negative = len(y) - n_positive
+    print(f"\nClass distribution (VOI level):")
+    print(f"  HL (positive): {n_positive} ({100*n_positive/n_vois:.1f}%)")
+    print(f"  Others (negative): {n_negative} ({100*n_negative/n_vois:.1f}%)")
+    
+    # Patient-level class distribution
+    patient_labels = {}
+    for pid, label in zip(p_ids, y):
+        if pid not in patient_labels:
+            patient_labels[pid] = label
+    
+    pat_pos = sum(patient_labels.values())
+    pat_neg = n_patients - pat_pos
+    print(f"\nClass distribution (patient level):")
+    print(f"  HL (positive): {pat_pos} ({100*pat_pos/n_patients:.1f}%)")
+    print(f"  Others (negative): {pat_neg} ({100*pat_neg/n_patients:.1f}%)")
+    
+    # VOIs per patient statistics
+    vois_per_patient = Counter(p_ids)
+    voi_counts = list(vois_per_patient.values())
+    print(f"\nVOIs per patient statistics:")
+    print(f"  Min: {min(voi_counts)}")
+    print(f"  Max: {max(voi_counts)}")
+    print(f"  Median: {np.median(voi_counts):.1f}")
+    print(f"  Mean: {np.mean(voi_counts):.2f}")
+    print(f"  Std: {np.std(voi_counts):.2f}")
+
+
+def print_split_info(Xtr, ytr, ptr, Xte, yte, pte):
+    """
+    Print train/test split information.
+    
+    Args:
+        Xtr, ytr, ptr: Training features, labels, and patient IDs
+        Xte, yte, pte: Test features, labels, and patient IDs
+    """
+    print_separator("TRAIN/TEST SPLIT")
+    
+    n_train_pat = len(np.unique(ptr))
+    n_test_pat = len(np.unique(pte))
+    n_train_voi = len(ytr)
+    n_test_voi = len(yte)
+    
+    # Training set info
+    train_pat_positive = np.sum([ytr[ptr==p][0] for p in np.unique(ptr)])
+    print(f"Training set:")
+    print(f"  Patients: {n_train_pat} ({train_pat_positive} positive, {n_train_pat-train_pat_positive} negative)")
+    print(f"  VOIs: {n_train_voi} ({np.sum(ytr)} positive, {n_train_voi-np.sum(ytr)} negative)")
+    print(f"  Average VOIs per patient: {n_train_voi/n_train_pat:.2f}")
+    
+    # Test set info
+    test_pat_positive = np.sum([yte[pte==p][0] for p in np.unique(pte)])
+    print(f"\nTest set:")
+    print(f"  Patients: {n_test_pat} ({test_pat_positive} positive, {n_test_pat-test_pat_positive} negative)")
+    print(f"  VOIs: {n_test_voi} ({np.sum(yte)} positive, {n_test_voi-np.sum(yte)} negative)")
+    print(f"  Average VOIs per patient: {n_test_voi/n_test_pat:.2f}")
+    
+    # Split ratio
+    total_pat = n_train_pat + n_test_pat
+    print(f"\nSplit ratio: {n_train_pat/total_pat:.1%} train / {n_test_pat/total_pat:.1%} test")
+
+
+def print_cv_header(approach_name, n_splits, random_state):
+    """
+    Print cross-validation configuration header.
+    
+    Args:
+        approach_name: Name of the approach (e.g., "Instance-Space")
+        n_splits: Number of CV folds
+        random_state: Random seed used
+    """
+    print_separator(f"CROSS-VALIDATION: {approach_name}")
+    print(f"Number of folds: {n_splits}")
+    print(f"Stratification: By patient with group constraints")
+    print(f"Random state: {random_state}")
+
+
+def print_evaluation_results(approach_name, voi_metrics, pat_metrics):
+    """
+    Print detailed evaluation results.
+    
+    Args:
+        approach_name: Name of the evaluated approach
+        voi_metrics: Tuple of (accuracy, f1) at VOI level (or None)
+        pat_metrics: Tuple of (accuracy, f1) at patient level (or None)
+    """
+    print_separator(f"EVALUATION RESULTS: {approach_name}")
+    
+    if voi_metrics is not None:
+        voi_acc, voi_f1 = voi_metrics
+        print(f"VOI-level metrics:")
+        print(f"  Accuracy: {voi_acc:.4f}")
+        print(f"  F1-score: {voi_f1:.4f}")
+    
+    if pat_metrics is not None:
+        pat_acc, pat_f1 = pat_metrics
+        print(f"\nPatient-level metrics:")
+        print(f"  Accuracy: {pat_acc:.4f}")
+        print(f"  F1-score: {pat_f1:.4f}")
+
+
+def print_shap_results(top_features, k=5):
+    """
+    Print SHAP feature importance results.
+    
+    Args:
+        top_features: List of top k feature names
+        k: Number of features to display
+    """
+    print_separator("SHAP FEATURE IMPORTANCE")
+    print(f"Top {k} most important features:")
+    for i, feat in enumerate(top_features, 1):
+        print(f"  {i}. {feat}")
+    print("\nSHAP plots saved:")
+    print("  - results/IS_summary.png: Feature impact visualization")
+    print("  - results/IS_bar.png: Feature importance ranking")
+
+
+def print_final_summary(results):
+    """
+    Print comprehensive final summary of all experiments.
+    
+    Args:
+        results: Dictionary containing all experimental results
+    """
+    print_separator("FINAL SUMMARY")
+    
+    # Instance-Space with all features
+    print("Instance-Space (IS) - All features:")
+    print(f"  VOI accuracy:     {results['IS']['voi_acc']:.4f}")
+    print(f"  VOI F1-score:     {results['IS']['voi_f1']:.4f}")
+    print(f"  Patient accuracy: {results['IS']['pat_acc']:.4f}")
+    print(f"  Patient F1-score: {results['IS']['pat_f1']:.4f}")
+    
+    # Instance-Space with top features
+    n_top_features = len(results['IS_top5']['features'])
+    print(f"\nInstance-Space (IS) - Top {n_top_features} features:")
+    print(f"  Features: {', '.join(results['IS_top5']['features'])}")
+    print(f"  VOI accuracy:     {results['IS_top5']['voi_acc']:.4f}")
+    print(f"  VOI F1-score:     {results['IS_top5']['voi_f1']:.4f}")
+    print(f"  Patient accuracy: {results['IS_top5']['pat_acc']:.4f}")
+    print(f"  Patient F1-score: {results['IS_top5']['pat_f1']:.4f}")
+    
+    # Embedded-Space
+    print("\nEmbedded-Space (ES):")
+    print(f"  Patient accuracy: {results['ES']['pat_acc']:.4f}")
+    print(f"  Patient F1-score: {results['ES']['pat_f1']:.4f}")
+    
+    # Best performer
+    print("\nPerformance comparison (patient-level F1-score):")
+    f1_scores = {
+        "Instance-Space (All features)": results['IS']['pat_f1'],
+        f"Instance-Space (Top {n_top_features})": results['IS_top5']['pat_f1'],
+        "Embedded-Space": results['ES']['pat_f1']
+    }
+    
+    for method, f1 in sorted(f1_scores.items(), key=lambda x: x[1], reverse=True):
+        marker = " <-- BEST" if f1 == max(f1_scores.values()) else ""
+        print(f"  {method:35s}: {f1:.4f}{marker}")
+    
+    print_separator()
+
+
+
+
+def print_completion_message():
+    """Print completion message with output file locations."""
+    print("\nExperiment completed successfully!")
+    print("\nResults saved to 'results/' directory:")
+    print("  - summary.json: Numerical results in JSON format")
+    print("  - IS_summary.png: SHAP summary plot")
+    print("  - IS_bar.png: SHAP feature importance bar plot")
+    print_separator()

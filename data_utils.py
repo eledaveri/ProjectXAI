@@ -1,61 +1,47 @@
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-import numpy as np
 
-def load_and_preprocess_data(csv_path: str):
-    """Load and preprocess the dataset from a CSV file. 
-    Args:
-        csv_path: Path to the CSV file.
-    Returns:
-        X_train: Training features.
-        X_test: Testing features.
-        y_train: Training labels.
-        y_test: Testing labels.
-        groups_train: Group labels for the training set.
-        le: Fitted LabelEncoder for decoding class labels.
-    """
+def load_data(csv_path):
     df = pd.read_csv(csv_path)
-    df["sex"] = df["sex"].map({"M": 0, "F": 1})
 
-    print("Number of unique patients per class:")
-    print(df.groupby("type")["patient"].nunique())
+    # Encode sex if present
+    if "sex" in df.columns:
+        df["sex"] = df["sex"].map({"M": 0, "F": 1})
 
-    # Colonne da escludere dalla classificazione
-    columns_to_exclude = ["type", "patient", "sex", "age", "weight", "height"]
-    
-    # Trova le colonne effettivamente presenti nel dataset
-    columns_present = [col for col in columns_to_exclude if col in df.columns]
-    print(f"\nColumns excluded from classification: {columns_present}")
-    
-    # Estrai features escludendo le colonne specificate
-    X = df.drop(columns=columns_present)
-    print(f"Number of features used for classification: {X.shape[1]}")
-    print(f"Feature columns: {X.columns.tolist()}")
-    
-    y = df["type"]
-    groups = df["patient"]
+    # Target -> binary HL vs Others
+    df["target"] = df["type"].apply(lambda x: 1 if x == "HL" else 0)
 
-    # Target encoding
-    le = LabelEncoder()
-    y_encoded = le.fit_transform(y)
-    print("\nTarget unique values:", np.unique(y_encoded))
-    print("Number of classes:", len(np.unique(y_encoded)))
+    # Feature list
+    drop_cols = ["type", "target", "VOI", "patient", "weight", "height"]
+    feature_cols = [c for c in df.columns if c not in drop_cols]
 
-    # Train-test split
-    unique_patients = df["patient"].unique()
-    train_patients, test_patients = train_test_split(
-        unique_patients,
-        test_size=0.2,
-        random_state=42,
-        stratify=df.groupby("patient")["type"].first()
+    X_voi = df[feature_cols].copy()
+    y_voi = df["target"].values
+    patient_ids = df["patient"].values
+
+    return X_voi, y_voi, patient_ids, feature_cols
+
+
+def split_by_patient(X, y, patient_ids, test_size, random_state):
+    unique_patients = np.unique(patient_ids)
+
+    # Unique patient → label
+    tmp = pd.DataFrame({"p": patient_ids, "y": y})
+    patient_y = tmp.groupby("p")["y"].first()
+
+    train_pat, test_pat = train_test_split(
+        patient_y.index, 
+        test_size=test_size, 
+        random_state=random_state,
+        stratify=patient_y.values
     )
 
-    train_idx = df["patient"].isin(train_patients)
-    test_idx = df["patient"].isin(test_patients)
+    mask_train = np.isin(patient_ids, train_pat)
+    mask_test  = np.isin(patient_ids, test_pat)
 
-    X_train, X_test = X[train_idx], X[test_idx]
-    y_train, y_test = y_encoded[train_idx], y_encoded[test_idx]
-    groups_train = df.loc[train_idx, "patient"]
-
-    return X_train, X_test, y_train, y_test, groups_train, le
+    return (
+        X[mask_train], y[mask_train], patient_ids[mask_train],
+        X[mask_test],  y[mask_test],  patient_ids[mask_test]
+    )
