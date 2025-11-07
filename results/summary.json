@@ -21,5 +21,16 @@
     "ES": {
         "pat_acc": 1.0,
         "pat_f1": 1.0
+    },
+    "ES_top5": {
+        "pat_acc": 1.0,
+        "pat_f1": 1.0,
+        "features": [
+            "age",
+            "sex",
+            "A41",
+            "A63",
+            "A92"
+        ]
     }
 }

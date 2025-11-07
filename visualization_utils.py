@@ -10,6 +10,8 @@ This module provides formatted printing functions for:
 """
 
 import numpy as np
+import os
+import matplotlib.pyplot as plt
 from collections import Counter
 
 
@@ -195,25 +197,51 @@ def print_final_summary(results):
     print(f"  Patient accuracy: {results['IS_top5']['pat_acc']:.4f}")
     print(f"  Patient F1-score: {results['IS_top5']['pat_f1']:.4f}")
     
-    # Embedded-Space
-    print("\nEmbedded-Space (ES):")
+    # Embedded-Space with all features
+    print("\nEmbedded-Space (ES) - All features:")
     print(f"  Patient accuracy: {results['ES']['pat_acc']:.4f}")
     print(f"  Patient F1-score: {results['ES']['pat_f1']:.4f}")
     
-    # Best performer
+    # Embedded-Space with top features
+    if 'ES_top5' in results:
+        print(f"\nEmbedded-Space (ES) - Top {n_top_features} features:")
+        print(f"  Patient accuracy: {results['ES_top5']['pat_acc']:.4f}")
+        print(f"  Patient F1-score: {results['ES_top5']['pat_f1']:.4f}")
+    
+    # Overfitting warning
+    high_acc_methods = []
+    if results['ES']['pat_acc'] >= 0.99:
+        high_acc_methods.append("ES (all features)")
+    if 'ES_top5' in results and results['ES_top5']['pat_acc'] >= 0.99:
+        high_acc_methods.append("ES (top features)")
+    
+    if high_acc_methods:
+        print("\n  WARNING: Perfect or near-perfect accuracy detected in:")
+        for method in high_acc_methods:
+            print(f"    - {method}")
+        print("  This may indicate overfitting due to:")
+        print("    - Small dataset size")
+        print("    - High feature-to-sample ratio")
+        print("    - Possible data leakage")
+        print("  Recommendation: Validate on independent dataset")
+    
+    # Performance comparison
     print("\nPerformance comparison (patient-level F1-score):")
     f1_scores = {
         "Instance-Space (All features)": results['IS']['pat_f1'],
         f"Instance-Space (Top {n_top_features})": results['IS_top5']['pat_f1'],
-        "Embedded-Space": results['ES']['pat_f1']
+        "Embedded-Space (All features)": results['ES']['pat_f1'],
     }
+    
+    if 'ES_top5' in results:
+        f1_scores[f"Embedded-Space (Top {n_top_features})"] = results['ES_top5']['pat_f1']
     
     for method, f1 in sorted(f1_scores.items(), key=lambda x: x[1], reverse=True):
         marker = " <-- BEST" if f1 == max(f1_scores.values()) else ""
-        print(f"  {method:35s}: {f1:.4f}{marker}")
+        suspicion = " [SUSPICIOUS]" if f1 >= 0.99 else ""
+        print(f"  {method:38s}: {f1:.4f}{marker}{suspicion}")
     
     print_separator()
-
 
 
 
@@ -225,3 +253,56 @@ def print_completion_message():
     print("  - IS_summary.png: SHAP summary plot")
     print("  - IS_bar.png: SHAP feature importance bar plot")
     print_separator()
+
+def plot_performance_comparison(results, save_path="results/performance_comparison.png"):
+    """
+    Create a bar plot comparing model performance (patient-level F1).
+    
+    Args:
+        results: dict with performance scores
+        save_path: output filepath
+    """
+
+    labels = []
+    f1_scores = []
+
+    labels.append("IS (All)")
+    f1_scores.append(results["IS"]["pat_f1"])
+
+    labels.append("IS (Top5)")
+    f1_scores.append(results["IS_top5"]["pat_f1"])
+
+    labels.append("ES (All)")
+    f1_scores.append(results["ES"]["pat_f1"])
+
+    if "ES_top5" in results:
+        labels.append("ES (Top5)")
+        f1_scores.append(results["ES_top5"]["pat_f1"])
+
+    # Create figure
+    plt.figure(figsize=(8, 5))
+    bars = plt.bar(labels, f1_scores)
+
+    # Annotazioni sopra le barre
+    for bar, score in zip(bars, f1_scores):
+        height = bar.get_height()
+        plt.text(
+            bar.get_x() + bar.get_width()/2,
+            height,
+            f"{score:.3f}",
+            ha="center",
+            va="bottom",
+            fontsize=10
+        )
+
+    plt.ylabel("Patient-level F1")
+    plt.ylim(0, max(f1_scores) * 1.15)
+    plt.title("Model performance comparison")
+
+    # Ensure results folder exists
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    plt.savefig(save_path, bbox_inches="tight")
+    plt.close()
+
+    print(f"\nComparative performance figure saved to: {save_path}")
