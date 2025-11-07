@@ -1,202 +1,202 @@
-# ProjectXAI
+# ProjectXAI: Hodgkin Lymphoma Classification with XAI
+
+A machine learning pipeline for lymphoma classification (Hodgkin Lymphoma vs Others) using two distinct approaches: Instance-Space (IS) and Embedded-Space (ES), with SHAP-based explainability.
+
+## Project Structure
 
 ```
 project/
 │
-├── data_utils.py          # Data loading and pre-processing
-├── model_utils.py         # Training function, cross-validation and SHAP
-├── main.py                # Main script
-└── dataset_A.csv
+├── config.py              # Configuration parameters (test size, CV folds, random state)
+├── data_utils.py          # Data loading and patient-stratified splitting
+├── model_IS.py            # Instance-Space model (VOI-level predictions → patient aggregation)
+├── model_ES.py            # Embedded-Space model (patient-level embeddings)
+├── shap_utils.py          # SHAP explainability utilities
+├── evaluation.py          # Metrics computation and reporting
+├── visualization_utils.py # Formatted output and plotting functions
+├── main.py                # Main experimental pipeline
+├── dataset_A.csv          # Input dataset
+└── results/               # Output directory (auto-generated)
+    ├── summary.json
+    ├── IS_summary.png
+    ├── IS_bar.png
+    └── performance_comparison.png
 ```
 
-## MODEL PERFORMAMCES
+## Project Overview
 
-```
-==================================================
-TRAINING WITH ALL FEATURES
-==================================================
+### Dataset Characteristics
+- **36 patients** with **349 VOIs (Volumes of Interest)**
+- **111 radiomic features** per VOI
+- **Binary classification**: HL (Hodgkin Lymphoma) vs Others
+- **Class imbalance**: 
+  - VOI-level: 15.2% HL, 84.8% Others
+  - Patient-level: 25.0% HL, 75.0% Others
+- **Variable VOIs per patient**: 1-29 (mean: 9.69, median: 8.0)
 
-Fold 1
-              precision    recall  f1-score   support
+### Split Strategy
+- **Patient-stratified split**: 70% train / 30% test
+- Ensures no patient appears in both train and test sets
+- Maintains class distribution across splits
 
-       DLBCL       0.47      0.93      0.62        15
-          FL       0.00      0.00      0.00         0
-          HL       1.00      1.00      1.00        13
-         MCL       1.00      0.50      0.67        32
+## Methodology
 
-    accuracy                           0.72        60
-   macro avg       0.62      0.61      0.57        60
-weighted avg       0.87      0.72      0.73        60
+### Two Complementary Approaches
 
+#### 1. **Instance-Space (IS)**
+- Operates at VOI level
+- XGBoost classifier predicts each VOI independently
+- Aggregates VOI predictions to patient level via majority voting
+- Suitable for fine-grained analysis
 
-Fold 2
-              precision    recall  f1-score   support
+#### 2. **Embedded-Space (ES)**
+- Aggregates VOI features per patient (min, max, mean, std)
+- Creates patient-level embeddings
+- Single prediction per patient
+- Reduces dimensionality and noise
 
-       DLBCL       1.00      1.00      1.00        12
-          FL       0.23      0.83      0.36         6
-          HL       1.00      1.00      1.00         7
-         MCL       0.96      0.59      0.73        41
-
-    accuracy                           0.73        66
-   macro avg       0.80      0.85      0.77        66
-weighted avg       0.90      0.73      0.77        66
-
-
-Fold 3
-              precision    recall  f1-score   support
-
-       DLBCL       1.00      0.47      0.64        17
-          FL       0.07      0.10      0.08        21
-          HL       1.00      1.00      1.00         1
-         MCL       0.07      0.07      0.07        29
-
-    accuracy                           0.19        68
-   macro avg       0.53      0.41      0.45        68
-weighted avg       0.31      0.19      0.23        68
-
-
-Fold 4
-              precision    recall  f1-score   support
-
-       DLBCL       0.00      0.00      0.00         1
-          FL       0.00      0.00      0.00         0
-          HL       1.00      0.43      0.60         7
-         MCL       0.00      0.00      0.00         6
-
-    accuracy                           0.21        14
-   macro avg       0.25      0.11      0.15        14
-weighted avg       0.50      0.21      0.30        14
-
-
-Fold 5
-              precision    recall  f1-score   support
-
-       DLBCL       0.00      0.00      0.00         3
-          FL       0.00      0.00      0.00        24
-          HL       1.00      1.00      1.00        12
-         MCL       0.00      0.00      0.00         0
-
-    accuracy                           0.31        39
-   macro avg       0.25      0.25      0.25        39
-weighted avg       0.31      0.31      0.31        39
-
-Final model trained with 4 classes.
-
-Results on test set:
-              precision    recall  f1-score   support
-
-       DLBCL       1.00      0.50      0.67        18
-          FL       0.88      0.80      0.84        35
-          HL       1.00      1.00      1.00        13
-         MCL       0.71      0.94      0.81        36
-
-    accuracy                           0.82       102
-   macro avg       0.90      0.81      0.83       102
-weighted avg       0.85      0.82      0.82       102
+### Model Configuration
+Both approaches use XGBoost with identical hyperparameters:
+```python
+XGBClassifier(
+    objective="binary:logistic",
+    n_estimators=200,
+    learning_rate=0.05,
+    max_depth=5,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    random_state=42
+)
 ```
 
-## SHAP RESULTS
+### Cross-Validation
+- **3-fold stratified cross-validation**
+- Patient-level stratification with group constraints
+- No patient leakage between folds
 
-1. **`shap_bar.png`**: 
-   ![shap_bar](results/shap_bar.png)
+## Results
 
-2. **`shap_summary.png`**:
-    ![shap_summary](results/shap_summary.png)
+### Cross-Validation Performance
 
-3. **`shap_waterfall.png`**:
-    ![shap_waterfall](results/shap_all_features_waterfall.png)
-
-### TOP5 SHAP FEATURES
-
-1. VOI
-2. A103
-3. A98
-4. A48
-5. A14
-
-## PERFORMANCES AFTER TRAINING WITH ONLY TOP5 SHAP FEATURES
-
+#### Instance-Space (IS)
 ```
-Fold 1
-              precision    recall  f1-score   support
-
-       DLBCL       0.45      0.87      0.59        15
-          FL       0.00      0.00      0.00         0
-          HL       1.00      1.00      1.00        13
-         MCL       1.00      0.50      0.67        32
-
-    accuracy                           0.70        60
-   macro avg       0.61      0.59      0.56        60
-weighted avg       0.86      0.70      0.72        60
-
-
-Fold 2
-              precision    recall  f1-score   support
-
-       DLBCL       1.00      1.00      1.00        12
-          FL       0.25      0.83      0.38         6
-          HL       1.00      1.00      1.00         7
-         MCL       0.96      0.63      0.76        41
-
-    accuracy                           0.76        66
-   macro avg       0.80      0.87      0.79        66
-weighted avg       0.91      0.76      0.80        66
-
-
-Fold 3
-              precision    recall  f1-score   support
-
-       DLBCL       1.00      0.47      0.64        17
-          FL       0.13      0.19      0.15        21
-          HL       1.00      1.00      1.00         1
-         MCL       0.11      0.10      0.11        29
-
-    accuracy                           0.24        68
-   macro avg       0.56      0.44      0.47        68
-weighted avg       0.35      0.24      0.27        68
-
-
-Fold 4
-              precision    recall  f1-score   support
-
-       DLBCL       0.00      0.00      0.00         1
-          FL       0.00      0.00      0.00         0
-          HL       1.00      0.43      0.60         7
-         MCL       0.00      0.00      0.00         6
-
-    accuracy                           0.21        14
-   macro avg       0.25      0.11      0.15        14
-weighted avg       0.50      0.21      0.30        14
-
-
-Fold 5
-              precision    recall  f1-score   support
-
-       DLBCL       0.50      0.33      0.40         3
-          FL       0.00      0.00      0.00        24
-          HL       1.00      1.00      1.00        12
-         MCL       0.00      0.00      0.00         0
-
-    accuracy                           0.33        39
-   macro avg       0.38      0.33      0.35        39
-weighted avg       0.35      0.33      0.34        39
-
-Final model trained with 4 classes.
-
-Results on test set:
-              precision    recall  f1-score   support
-
-       DLBCL       1.00      0.44      0.62        18
-          FL       0.93      0.80      0.86        35
-          HL       1.00      1.00      1.00        13
-         MCL       0.69      0.97      0.80        36
-
-    accuracy                           0.82       102
-   macro avg       0.90      0.80      0.82       102
-weighted avg       0.87      0.82      0.82       102
+Patient-level metrics:
+  Accuracy: 0.833 ± 0.068
+  F1-score: 0.667 ± 0.000
 ```
 
-## PERFORMANCE COMPARISON
+#### Embedded-Space (ES)
+```
+Patient-level metrics:
+  Accuracy: 1.000 ± 0.000
+  F1-score: 1.000 ± 0.000
+```
 
-**`model_comparison.png`**: 
-   ![model_comparison](results/model_comparison.png)
+### Test Set Evaluation
+
+| Approach | Features | VOI Acc | VOI F1 | Patient Acc | Patient F1 |
+|----------|----------|---------|--------|-------------|------------|
+| **IS** | All (111) | 0.9333 | 0.7000 | 0.8182 | 0.6667 |
+| **IS** | Top 5 | 0.9333 | 0.7000 | 0.8182 | 0.6667 |
+| **ES** | All (111) | - | - | **1.0000** | **1.0000** |
+| **ES** | Top 5 | - | - | **1.0000** | **1.0000** |
+
+⚠️ **Warning**: Perfect accuracy in ES suggests possible overfitting due to small dataset size (36 patients). Independent validation recommended.
+
+## 🔍 SHAP Explainability
+
+### Top 5 Most Important Features
+1. **age** - Patient age
+2. **sex** - Patient sex (0=M, 1=F)
+3. **A41** - Radiomic feature
+4. **A63** - Radiomic feature
+5. **A92** - Radiomic feature
+
+### SHAP Visualizations
+
+**Feature Importance Ranking**
+![SHAP Bar Plot](results/IS_bar.png)
+
+**Feature Impact on Predictions**
+![SHAP Summary Plot](results/IS_summary.png)
+
+**Performance Comparison**
+![Model Comparison](results/performance_comparison.png)
+
+### Key Insights
+- Using only top 5 features maintains identical performance to full feature set
+- Suggests high redundancy in radiomic features
+- Age and sex are critical demographic predictors
+- Feature selection reduces model complexity without performance loss
+
+## Usage
+
+### Requirements
+```bash
+pip install pandas numpy scikit-learn xgboost shap matplotlib joblib
+```
+
+### Run Full Pipeline
+```bash
+python main.py
+```
+
+### Configuration
+Edit `config.py` to modify:
+```python
+TEST_SIZE = 0.3      # Train/test split ratio
+N_SPLITS = 3         # Number of CV folds
+RANDOM_STATE = 42    # Reproducibility seed
+```
+
+### Output Files
+All results are saved to `results/` directory:
+- `summary.json` - Numerical results in JSON format
+- `IS_summary.png` - SHAP feature impact visualization
+- `IS_bar.png` - SHAP feature importance ranking
+- `performance_comparison.png` - Model comparison bar plot
+
+## 📈 Performance Comparison
+
+```
+Performance ranking (Patient-level F1-score):
+  1. Embedded-Space (All features)  : 1.0000  SUSPICIOUS
+  2. Embedded-Space (Top 5)         : 1.0000  SUSPICIOUS
+  3. Instance-Space (All features)  : 0.6667
+  4. Instance-Space (Top 5)         : 0.6667
+```
+
+## ⚠️ Limitations 
+
+1. **Small Dataset**: Only 36 patients limits generalization
+2. **Overfitting Risk**: Perfect ES accuracy suggests memorization rather than learning
+3. **Class Imbalance**: Only 9 HL patients (25%) in dataset
+4. **Validation Needed**: Results must be validated on independent external cohort
+5. **Feature-to-Sample Ratio**: 111 features for 36 patients is extremely high
+
+
+## Implementation Details
+
+### Patient-Level Aggregation Strategies
+
+**Instance-Space**: 
+- Majority voting on VOI predictions
+- Alternative: Mean probability thresholding (implemented but not default)
+
+**Embedded-Space**:
+- Statistical aggregation: min, max, mean, std per feature
+- Creates 111 × 4 = 444 derived features per patient
+
+### Model Saving
+```python
+from model_IS import save_model
+save_model(model, "results/model_IS.joblib")
+```
+
+### SHAP Analysis
+```python
+from shap_utils import explain_shap, top_shap_features
+shap_values = explain_shap(model, X_train, "results/IS")
+top_features = top_shap_features(shap_values, feature_names, k=5)
+```
+
