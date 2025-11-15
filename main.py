@@ -20,7 +20,7 @@ from config import (
     TEST_SIZE, N_SPLITS, RANDOM_STATE,
     DATASET_A_PATH, DATASET_B_PATH,
     EXCLUDE_FEATURES, TOP_K_FEATURES,
-    RESULTS_DIR, SHAP_PREFIX
+    RESULTS_DIR, SHAP_PREFIX, DATASET_A+B_PATH
 )
 import pandas as pd
 import numpy as np
