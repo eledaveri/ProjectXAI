@@ -380,16 +380,5 @@ top5 = top_shap_features(shap_vals, feature_names, k=5)
 # - results/IS_bar.png
 ```
 
-## Citation
 
-If you use this project, please cite:
-
-```bibtex
-@software{projectxai_2024,
-  title={ProjectXAI: Hodgkin Lymphoma Classification with SHAP Explainability},
-  author={Your Name},
-  year={2024},
-  url={https://github.com/yourrepo}
-}
-```
 
