@@ -110,38 +110,3 @@ def align_features(X_source, feature_cols_source, X_target):
     
     return X_target_aligned
 
-
-def combine_datasets(X1, y1, p1, X2, y2, p2):
-    """
-    Combine two datasets, adjusting patient IDs to avoid conflicts.
-    Aligns X2 columns to match X1.
-    
-    Args:
-        X1, y1, p1: First dataset (features, labels, patient IDs)
-        X2, y2, p2: Second dataset (features, labels, patient IDs)
-    
-    Returns:
-        X_combined, y_combined, p_combined
-    """
-    # Align X2 columns to X1
-    X2_aligned = align_features(X1, list(X1.columns), X2)
-    
-    # Ensure X2 has same columns as X1 (in same order)
-    for col in X1.columns:
-        if col not in X2_aligned.columns:
-            X2_aligned[col] = np.nan
-    X2_aligned = X2_aligned[X1.columns]
-    
-    # Adjust patient IDs from dataset_2 to avoid conflicts
-    max_pid = p1.max()
-    p2_adjusted = p2 + max_pid + 1
-    
-    # Concatenate
-    X_combined = pd.concat(
-        [X1.reset_index(drop=True), X2_aligned.reset_index(drop=True)], 
-        ignore_index=True
-    )
-    y_combined = np.concatenate([y1, y2])
-    p_combined = np.concatenate([p1, p2_adjusted])
-    
-    return X_combined, y_combined, p_combined
