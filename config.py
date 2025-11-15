@@ -8,8 +8,8 @@ N_SPLITS = 3
 RANDOM_STATE = 42
 
 # Dataset paths
-DATASET_A_PATH = "dataset_A.csv"
-DATASET_B_PATH = "dataset_B.csv"
+DATASET_A_PATH = "data/dataset_A.csv"
+DATASET_B_PATH = "data/dataset_A+B.csv"
 
 # Features to exclude in "no demographic" analysis
 EXCLUDE_FEATURES = ["sex", "age"]
