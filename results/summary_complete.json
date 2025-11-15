@@ -35,7 +35,7 @@
             ]
         }
     },
-    "dataset_A_plus_B_external_validation": {
+    "dataset_B_external_validation": {
         "IS": {
             "voi_acc": 0.819672131147541,
             "voi_f1": 0.5837837837837838,

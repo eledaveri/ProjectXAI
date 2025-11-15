@@ -18,9 +18,9 @@ from visualization_utils import (
 )
 from config import (
     TEST_SIZE, N_SPLITS, RANDOM_STATE,
-    DATASET_A_PATH, DATASET_B_PATH,
+    DATASET_A_PATH, DATASET_B_PATH, DATASET_AB_PATH,
     EXCLUDE_FEATURES, TOP_K_FEATURES,
-    RESULTS_DIR, SHAP_PREFIX, DATASET_A+B_PATH
+    RESULTS_DIR, SHAP_PREFIX
 )
 import pandas as pd
 import numpy as np
@@ -29,10 +29,10 @@ import numpy as np
 def main():
 
     # ============================================================================
-    # PHASE 1: Train on dataset_A, validate on dataset_A+B (external)
+    # PHASE 1: Train on dataset_A, validate on dataset_B (external)
     # ============================================================================
     print("\n" + "="*80)
-    print(" PHASE 1: TRAIN ON DATASET_A, VALIDATE ON DATASET_A+B")
+    print(" PHASE 1: TRAIN ON DATASET_A, VALIDATE ON DATASET_B")
     print("="*80)
     
     # Load data
@@ -40,13 +40,13 @@ def main():
     X_A, y_A, p_ids_A, feat_A = load_data(DATASET_A_PATH)
     print_dataset_info(X_A, y_A, p_ids_A, feat_A)
     
-    print("\nLoading dataset_A+B (external validation)...")
-    X_combined_full, y_combined_full, p_ids_combined_full, feat_combined = load_data(DATASET_B_PATH)
-    print_dataset_info(X_combined_full, y_combined_full, p_ids_combined_full, feat_combined)
+    print("\nLoading dataset_B (external validation)...")
+    X_B, y_B, p_ids_B, feat_B = load_data(DATASET_B_PATH)
+    print_dataset_info(X_B, y_B, p_ids_B, feat_B)
     
-    # Align dataset_A to dataset_A+B (remove features not in combined dataset)
-    print("\nAligning features: removing columns not present in dataset_A+B...")
-    X_A_aligned = align_features(X_combined_full, feat_combined, X_A)
+    # Align dataset_A to dataset_B (remove features not in B)
+    print("\nAligning features: removing columns not present in dataset_B...")
+    X_A_aligned = align_features(X_B, feat_B, X_A)
     feat_A_aligned = list(X_A_aligned.columns)
     print(f"Dataset_A aligned features: {len(feat_A_aligned)} (was {len(feat_A)})")
     
@@ -100,37 +100,37 @@ def main():
     print_evaluation_results(f"Embedded-Space (Top {TOP_K_FEATURES} features) - A test", None, pat_m_es2)
     
     # ============================================================================
-    # VALIDATION ON DATASET_A+B (EXTERNAL)
+    # VALIDATION ON DATASET_B (EXTERNAL)
     # ============================================================================
     print("\n" + "="*80)
-    print(" VALIDATION ON DATASET_A+B (EXTERNAL)")
+    print(" VALIDATION ON DATASET_B (EXTERNAL)")
     print(" (models trained on dataset_A)")
     print("="*80)
     
-    print("\nEvaluating IS (all features) on dataset_A+B...")
-    model_IS_eval_B = train_eval_IS(Xtr, ytr, ptr, X_combined_full, y_combined_full, p_ids_combined_full)
+    print("\nEvaluating IS (all features) on dataset_B...")
+    model_IS_eval_B = train_eval_IS(Xtr, ytr, ptr, X_B, y_B, p_ids_B)
     voi_m_B = model_IS_eval_B[1]
     pat_m_B = model_IS_eval_B[2]
-    print_evaluation_results("Instance-Space (All features) - A+B test", voi_m_B, pat_m_B)
+    print_evaluation_results("Instance-Space (All features) - B test", voi_m_B, pat_m_B)
     
-    print(f"\nEvaluating IS (top {TOP_K_FEATURES} features) on dataset_A+B...")
+    print(f"\nEvaluating IS (top {TOP_K_FEATURES} features) on dataset_B...")
     model_IS2_eval_B = train_eval_IS(
         Xtr[top5], ytr, ptr,
-        X_combined_full[top5], y_combined_full, p_ids_combined_full
+        X_B[top5], y_B, p_ids_B
     )
     voi_m2_B = model_IS2_eval_B[1]
     pat_m2_B = model_IS2_eval_B[2]
-    print_evaluation_results(f"Instance-Space (Top {TOP_K_FEATURES} features) - A+B test", voi_m2_B, pat_m2_B)
+    print_evaluation_results(f"Instance-Space (Top {TOP_K_FEATURES} features) - B test", voi_m2_B, pat_m2_B)
     
-    print("\nEvaluating ES (all features) on dataset_A+B...")
-    Xpb, ypb = create_patient_embedding(X_combined_full, y_combined_full, p_ids_combined_full)
+    print("\nEvaluating ES (all features) on dataset_B...")
+    Xpb, ypb = create_patient_embedding(X_B, y_B, p_ids_B)
     pat_m_es_B = train_eval_ES(Xptr, yptr, Xpb, ypb)[1]
-    print_evaluation_results("Embedded-Space (All features) - A+B test", None, pat_m_es_B)
+    print_evaluation_results("Embedded-Space (All features) - B test", None, pat_m_es_B)
     
-    print(f"\nEvaluating ES (top {TOP_K_FEATURES} features) on dataset_A+B...")
-    Xpb_top5, ypb_top5 = create_patient_embedding(X_combined_full[top5], y_combined_full, p_ids_combined_full)
+    print(f"\nEvaluating ES (top {TOP_K_FEATURES} features) on dataset_B...")
+    Xpb_top5, ypb_top5 = create_patient_embedding(X_B[top5], y_B, p_ids_B)
     pat_m_es2_B = train_eval_ES(Xptr_top5, yptr_top5, Xpb_top5, ypb_top5)[1]
-    print_evaluation_results(f"Embedded-Space (Top {TOP_K_FEATURES} features) - A+B test", None, pat_m_es2_B)
+    print_evaluation_results(f"Embedded-Space (Top {TOP_K_FEATURES} features) - B test", None, pat_m_es2_B)
     
     # ============================================================================
     # PHASE 2: Cross-validation on dataset_A+B WITH demographics (sex/age)
@@ -139,14 +139,15 @@ def main():
     print(" PHASE 2: CROSS-VALIDATION ON DATASET_A+B WITH SEX/AGE")
     print("="*80)
     
-    print("\nUsing dataset_A+B (with all features including sex/age)...")
-    print_dataset_info(X_combined_full, y_combined_full, p_ids_combined_full, feat_combined)
+    print("\nLoading dataset_A+B (combined dataset)...")
+    X_combined, y_combined, p_combined, feat_combined = load_data(DATASET_AB_PATH)
+    print_dataset_info(X_combined, y_combined, p_combined, feat_combined)
     
     print_cv_header("Instance-Space (IS) on dataset_A+B (with demographics)", N_SPLITS, RANDOM_STATE)
-    cv_IS(X_combined_full, y_combined_full, p_ids_combined_full, N_SPLITS)
+    cv_IS(X_combined, y_combined, p_combined, N_SPLITS)
     
     print_cv_header("Embedded-Space (ES) on dataset_A+B (with demographics)", N_SPLITS, RANDOM_STATE)
-    Xp_combined, yp_combined = create_patient_embedding(X_combined_full, y_combined_full, p_ids_combined_full)
+    Xp_combined, yp_combined = create_patient_embedding(X_combined, y_combined, p_combined)
     cv_ES(Xp_combined, yp_combined, N_SPLITS)
     
     # ============================================================================
@@ -157,11 +158,11 @@ def main():
     print("="*80)
     
     print("\nLoading dataset_A+B without sex/age...")
-    X_combined_no_demo, y_combined_no_demo, p_combined_no_demo, feat_no_demo = load_data_exclude_features(
-        DATASET_B_PATH, exclude_cols=EXCLUDE_FEATURES
+    X_combined_no_demo, y_combined_no_demo, p_combined_no_demo, feat_combined_no_demo = load_data_exclude_features(
+        DATASET_AB_PATH, exclude_cols=EXCLUDE_FEATURES
     )
-    print(f"Features after exclusion: {len(feat_no_demo)}")
-    print_dataset_info(X_combined_no_demo, y_combined_no_demo, p_combined_no_demo, feat_no_demo)
+    print(f"Features after exclusion: {len(feat_combined_no_demo)}")
+    print_dataset_info(X_combined_no_demo, y_combined_no_demo, p_combined_no_demo, feat_combined_no_demo)
     
     print_cv_header("Instance-Space (IS) on dataset_A+B (without demographics)", N_SPLITS, RANDOM_STATE)
     cv_IS(X_combined_no_demo, y_combined_no_demo, p_combined_no_demo, N_SPLITS)
@@ -200,7 +201,7 @@ def main():
                 "features": top5,
             }
         },
-        "dataset_A_plus_B_external_validation": {
+        "dataset_B_external_validation": {
             "IS": {
                 "voi_acc": voi_m_B[0],
                 "voi_f1": voi_m_B[1],
@@ -228,12 +229,12 @@ def main():
     
     print_final_summary(results["dataset_A_internal"])
     print("\n" + "="*80)
-    print(" EXTERNAL VALIDATION ON DATASET_A+B")
+    print(" EXTERNAL VALIDATION ON DATASET_B")
     print("="*80)
-    print_final_summary(results["dataset_A_plus_B_external_validation"])
+    print_final_summary(results["dataset_B_external_validation"])
     
     plot_performance_comparison(results["dataset_A_internal"], f"{RESULTS_DIR}/performance_comparison_A.png")
-    plot_performance_comparison(results["dataset_A_plus_B_external_validation"], f"{RESULTS_DIR}/performance_comparison_A+B.png")
+    plot_performance_comparison(results["dataset_B_external_validation"], f"{RESULTS_DIR}/performance_comparison_B.png")
     
     save_report(results, f"{RESULTS_DIR}/summary_complete.json")
     print_completion_message()
