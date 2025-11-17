@@ -14,7 +14,8 @@ DATASET_AB_PATH = "data/dataset_A+B.csv"
 
 # Features to exclude in "no demographic" analysis
 EXCLUDE_FEATURES = ["sex", "age"]
-
+# Feature merging strategy: use only common patients or fill missing or drop demographics
+MERGE_STRATEGY = "common_patients"  # Options: "common_patients", "all_patients"
 # Top-K features to use in feature-reduced models
 TOP_K_FEATURES = 5
 

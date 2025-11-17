@@ -1,6 +1,6 @@
 from data_utils import (
     load_data, load_data_exclude_features, split_by_patient, 
-    align_features
+    align_features, merge_datasets_with_demographics
 )
 from model_IS import train_eval_IS, cv_IS
 from model_ES import create_patient_embedding, train_eval_ES, cv_ES
@@ -14,13 +14,16 @@ from visualization_utils import (
     print_shap_results,
     print_final_summary,
     print_completion_message,
-    plot_performance_comparison
+    plot_performance_comparison,
+    plot_cv_comparison,
+    plot_demographics_impact,
+    plot_all_phases_comparison
 )
 from config import (
     TEST_SIZE, N_SPLITS, RANDOM_STATE,
     DATASET_A_PATH, DATASET_B_PATH, DATASET_AB_PATH,
     EXCLUDE_FEATURES, TOP_K_FEATURES,
-    RESULTS_DIR, SHAP_PREFIX
+    RESULTS_DIR, SHAP_PREFIX, MERGE_STRATEGY
 )
 import pandas as pd
 import numpy as np
@@ -137,41 +140,51 @@ def main():
     # ============================================================================
     print("\n" + "="*80)
     print(" PHASE 2: CROSS-VALIDATION ON DATASET_A+B WITH SEX/AGE")
+    print(f" (Merge strategy: {MERGE_STRATEGY})")
     print("="*80)
     
-    print("\nLoading dataset_A+B (combined dataset)...")
-    X_combined, y_combined, p_combined, feat_combined = load_data(DATASET_AB_PATH)
-    print_dataset_info(X_combined, y_combined, p_combined, feat_combined)
+    # Merge datasets using configured strategy
+    X_combined_with_demo, y_combined_with_demo, p_combined_with_demo, feat_combined_with_demo = \
+        merge_datasets_with_demographics(DATASET_A_PATH, DATASET_B_PATH, strategy=MERGE_STRATEGY)
+    print_dataset_info(X_combined_with_demo, y_combined_with_demo, p_combined_with_demo, feat_combined_with_demo)
     
     print_cv_header("Instance-Space (IS) on dataset_A+B (with demographics)", N_SPLITS, RANDOM_STATE)
-    cv_IS(X_combined, y_combined, p_combined, N_SPLITS)
+    cv_is_with_demo = cv_IS(X_combined_with_demo, y_combined_with_demo, p_combined_with_demo, N_SPLITS)
     
     print_cv_header("Embedded-Space (ES) on dataset_A+B (with demographics)", N_SPLITS, RANDOM_STATE)
-    Xp_combined, yp_combined = create_patient_embedding(X_combined, y_combined, p_combined)
-    cv_ES(Xp_combined, yp_combined, N_SPLITS)
+    Xp_combined_with_demo, yp_combined_with_demo = create_patient_embedding(
+        X_combined_with_demo, y_combined_with_demo, p_combined_with_demo
+    )
+    cv_es_with_demo = cv_ES(Xp_combined_with_demo, yp_combined_with_demo, N_SPLITS)
     
     # ============================================================================
     # PHASE 3: Cross-validation on dataset_A+B WITHOUT demographics (sex/age)
     # ============================================================================
     print("\n" + "="*80)
     print(" PHASE 3: CROSS-VALIDATION ON DATASET_A+B WITHOUT SEX/AGE")
+    print(" (Using dataset_A+B.csv file)")
     print("="*80)
     
-    print("\nLoading dataset_A+B without sex/age...")
-    X_combined_no_demo, y_combined_no_demo, p_combined_no_demo, feat_combined_no_demo = load_data_exclude_features(
-        DATASET_AB_PATH, exclude_cols=EXCLUDE_FEATURES
-    )
-    print(f"Features after exclusion: {len(feat_combined_no_demo)}")
+    print("\nLoading dataset_A+B.csv (without sex/age)...")
+    X_combined_no_demo, y_combined_no_demo, p_combined_no_demo, feat_combined_no_demo = load_data(DATASET_AB_PATH)
+    print(f"Features in dataset_A+B.csv: {len(feat_combined_no_demo)}")
     print_dataset_info(X_combined_no_demo, y_combined_no_demo, p_combined_no_demo, feat_combined_no_demo)
     
+    # Check if sex/age are present
+    if 'sex' in feat_combined_no_demo or 'age' in feat_combined_no_demo:
+        print("\nWARNING: sex/age found in dataset_A+B.csv, removing them...")
+        X_combined_no_demo, y_combined_no_demo, p_combined_no_demo, feat_combined_no_demo = \
+            load_data_exclude_features(DATASET_AB_PATH, exclude_cols=EXCLUDE_FEATURES)
+        print(f"Features after exclusion: {len(feat_combined_no_demo)}")
+    
     print_cv_header("Instance-Space (IS) on dataset_A+B (without demographics)", N_SPLITS, RANDOM_STATE)
-    cv_IS(X_combined_no_demo, y_combined_no_demo, p_combined_no_demo, N_SPLITS)
+    cv_is_no_demo = cv_IS(X_combined_no_demo, y_combined_no_demo, p_combined_no_demo, N_SPLITS)
     
     print_cv_header("Embedded-Space (ES) on dataset_A+B (without demographics)", N_SPLITS, RANDOM_STATE)
     Xp_combined_no_demo, yp_combined_no_demo = create_patient_embedding(
         X_combined_no_demo, y_combined_no_demo, p_combined_no_demo
     )
-    cv_ES(Xp_combined_no_demo, yp_combined_no_demo, N_SPLITS)
+    cv_es_no_demo = cv_ES(Xp_combined_no_demo, yp_combined_no_demo, N_SPLITS)
     
     # ============================================================================
     # COMPILE RESULTS
@@ -224,6 +237,34 @@ def main():
                 "pat_f1": pat_m_es2_B[1],
                 "features": top5,
             }
+        },
+        "dataset_AB_with_demographics": {
+            "IS_cv": {
+                "pat_acc": cv_is_with_demo["acc"].mean(),
+                "pat_f1": cv_is_with_demo["f1"].mean(),
+                "pat_acc_std": cv_is_with_demo["acc"].std(),
+                "pat_f1_std": cv_is_with_demo["f1"].std(),
+            },
+            "ES_cv": {
+                "pat_acc": cv_es_with_demo["acc"].mean(),
+                "pat_f1": cv_es_with_demo["f1"].mean(),
+                "pat_acc_std": cv_es_with_demo["acc"].std(),
+                "pat_f1_std": cv_es_with_demo["f1"].std(),
+            }
+        },
+        "dataset_AB_without_demographics": {
+            "IS_cv": {
+                "pat_acc": cv_is_no_demo["acc"].mean(),
+                "pat_f1": cv_is_no_demo["f1"].mean(),
+                "pat_acc_std": cv_is_no_demo["acc"].std(),
+                "pat_f1_std": cv_is_no_demo["f1"].std(),
+            },
+            "ES_cv": {
+                "pat_acc": cv_es_no_demo["acc"].mean(),
+                "pat_f1": cv_es_no_demo["f1"].mean(),
+                "pat_acc_std": cv_es_no_demo["acc"].std(),
+                "pat_f1_std": cv_es_no_demo["f1"].std(),
+            }
         }
     }
     
@@ -233,10 +274,54 @@ def main():
     print("="*80)
     print_final_summary(results["dataset_B_external_validation"])
     
+    # ============================================================================
+    # GENERATE ALL VISUALIZATIONS
+    # ============================================================================
+    print("\n" + "="*80)
+    print(" GENERATING VISUALIZATIONS")
+    print("="*80)
+    
+    # Original plots (Phase 1)
     plot_performance_comparison(results["dataset_A_internal"], f"{RESULTS_DIR}/performance_comparison_A.png")
     plot_performance_comparison(results["dataset_B_external_validation"], f"{RESULTS_DIR}/performance_comparison_B.png")
     
+    # New plots (Phase 2 and 3 comparison)
+    plot_cv_comparison(
+        results["dataset_AB_with_demographics"],
+        results["dataset_AB_without_demographics"],
+        f"{RESULTS_DIR}/cv_demographics_comparison.png"
+    )
+    
+    plot_demographics_impact(
+        results["dataset_AB_with_demographics"],
+        results["dataset_AB_without_demographics"],
+        f"{RESULTS_DIR}/demographics_impact.png"
+    )
+    
+    plot_all_phases_comparison(
+        results,
+        f"{RESULTS_DIR}/all_phases_comparison.png"
+    )
+    
+    # Save results
     save_report(results, f"{RESULTS_DIR}/summary_complete.json")
+    
+    # Print summary of generated files
+    print("\n" + "="*80)
+    print(" GENERATED FILES")
+    print("="*80)
+    print("\n Visualizations (PNG):")
+    print("  1. performance_comparison_A.png - Dataset A internal test results")
+    print("  2. performance_comparison_B.png - Dataset B external validation results")
+    print("  3. cv_demographics_comparison.png - CV with/without demographics (F1 & Accuracy)")
+    print("  4. demographics_impact.png - Impact of sex/age on performance (% change)")
+    print("  5. all_phases_comparison.png - Comprehensive overview of all phases")
+    print("\n SHAP Analysis:")
+    print("  6. IS_summary.png - SHAP feature importance summary")
+    print("  7. IS_bar.png - SHAP feature importance bar chart")
+    print("\n Data Files:")
+    print("  8. summary_complete.json - Complete numerical results")
+    
     print_completion_message()
 
 

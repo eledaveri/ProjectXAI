@@ -57,11 +57,11 @@ def train_eval_IS(X_tr, y_tr, p_tr, X_te, y_te, p_te):
 
     return model, (voi_acc, voi_f1), (pat_acc, pat_f1)
 
+
 def cv_IS(X, y, p_ids, n_splits=3):
     sgkf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=42)
 
-    accs = []
-    f1s = []
+    stats = []
 
     for tr, va in sgkf.split(X, y, groups=p_ids):
         model = create_xgb_binary()
@@ -76,23 +76,38 @@ def cv_IS(X, y, p_ids, n_splits=3):
         pat_true = order.values
         pat_pred = pat_pred.loc[order.index].values
 
-        accs.append(accuracy_score(pat_true, pat_pred))
-        f1s.append(f1_score(pat_true, pat_pred))
+        cm = confusion_matrix(pat_true, pat_pred)
+        stats.append(dict(
+            acc = accuracy_score(pat_true, pat_pred),
+            f1  = f1_score(pat_true, pat_pred),
+            prec= precision_score(pat_true, pat_pred, zero_division=0),
+            rec = recall_score(pat_true, pat_pred, zero_division=0),
+            cm  = cm.tolist(),
+        ))
+
+    df = pd.DataFrame(stats)
 
     print("\nCross-val IS (patient-level):")
-    print(f"ACC: {np.mean(accs):.3f} ± {np.std(accs):.3f}")
-    print(f"F1:  {np.mean(f1s):.3f} ± {np.std(f1s):.3f}")
+    print(df)
+    print("\nMean:")
+    print(df.mean(numeric_only=True))
+    print("\nStd:")
+    print(df.std(numeric_only=True))
+
+    return df
+
 
 def save_model(model, path="results/model.joblib"):
     os.makedirs("results", exist_ok=True)
     dump(model, path)
     print(f"Model saved → {path}")
 
+
 def eval_IS_verbose(y_true, y_pred):
     return dict(
         acc = accuracy_score(y_true, y_pred),
         f1  = f1_score(y_true, y_pred),
-        prec= precision_score(y_true, y_pred),
-        rec = recall_score(y_true, y_pred),
+        prec= precision_score(y_true, y_pred, zero_division=0),
+        rec = recall_score(y_true, y_pred, zero_division=0),
         cm  = confusion_matrix(y_true, y_pred).tolist()
     )

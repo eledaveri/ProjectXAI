@@ -306,3 +306,277 @@ def plot_performance_comparison(results, save_path="results/performance_comparis
     plt.close()
 
     print(f"\nComparative performance figure saved to: {save_path}")
+
+def plot_cv_comparison(results_with_demo, results_no_demo, save_path="results/cv_demographics_comparison.png"):
+    """
+    Compare cross-validation results with and without demographics.
+    
+    Args:
+        results_with_demo: dict with CV results including demographics
+        results_no_demo: dict with CV results excluding demographics
+        save_path: output filepath
+    """
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    
+    # F1 scores
+    methods = ['IS', 'ES']
+    x_pos = np.arange(len(methods))
+    width = 0.35
+    
+    # Extract F1 scores
+    f1_with = [results_with_demo["IS_cv"]["pat_f1"], results_with_demo["ES_cv"]["pat_f1"]]
+    f1_without = [results_no_demo["IS_cv"]["pat_f1"], results_no_demo["ES_cv"]["pat_f1"]]
+    
+    # Extract std for error bars
+    f1_with_std = [results_with_demo["IS_cv"]["pat_f1_std"], results_with_demo["ES_cv"]["pat_f1_std"]]
+    f1_without_std = [results_no_demo["IS_cv"]["pat_f1_std"], results_no_demo["ES_cv"]["pat_f1_std"]]
+    
+    # Plot F1
+    bars1 = axes[0].bar(x_pos - width/2, f1_with, width, label='With demographics', 
+                        yerr=f1_with_std, capsize=5, alpha=0.8)
+    bars2 = axes[0].bar(x_pos + width/2, f1_without, width, label='Without demographics',
+                        yerr=f1_without_std, capsize=5, alpha=0.8)
+    
+    axes[0].set_ylabel('F1-score (mean ± std)')
+    axes[0].set_title('Cross-Validation F1-score Comparison')
+    axes[0].set_xticks(x_pos)
+    axes[0].set_xticklabels(methods)
+    axes[0].legend()
+    axes[0].set_ylim(0, 1.1)
+    axes[0].grid(axis='y', alpha=0.3)
+    
+    # Add value labels
+    for bars in [bars1, bars2]:
+        for bar in bars:
+            height = bar.get_height()
+            axes[0].text(bar.get_x() + bar.get_width()/2., height,
+                        f'{height:.3f}',
+                        ha='center', va='bottom', fontsize=9)
+    
+    # Accuracy scores
+    acc_with = [results_with_demo["IS_cv"]["pat_acc"], results_with_demo["ES_cv"]["pat_acc"]]
+    acc_without = [results_no_demo["IS_cv"]["pat_acc"], results_no_demo["ES_cv"]["pat_acc"]]
+    
+    acc_with_std = [results_with_demo["IS_cv"]["pat_acc_std"], results_with_demo["ES_cv"]["pat_acc_std"]]
+    acc_without_std = [results_no_demo["IS_cv"]["pat_acc_std"], results_no_demo["ES_cv"]["pat_acc_std"]]
+    
+    # Plot Accuracy
+    bars3 = axes[1].bar(x_pos - width/2, acc_with, width, label='With demographics',
+                        yerr=acc_with_std, capsize=5, alpha=0.8)
+    bars4 = axes[1].bar(x_pos + width/2, acc_without, width, label='Without demographics',
+                        yerr=acc_without_std, capsize=5, alpha=0.8)
+    
+    axes[1].set_ylabel('Accuracy (mean ± std)')
+    axes[1].set_title('Cross-Validation Accuracy Comparison')
+    axes[1].set_xticks(x_pos)
+    axes[1].set_xticklabels(methods)
+    axes[1].legend()
+    axes[1].set_ylim(0, 1.1)
+    axes[1].grid(axis='y', alpha=0.3)
+    
+    # Add value labels
+    for bars in [bars3, bars4]:
+        for bar in bars:
+            height = bar.get_height()
+            axes[1].text(bar.get_x() + bar.get_width()/2., height,
+                        f'{height:.3f}',
+                        ha='center', va='bottom', fontsize=9)
+    
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, bbox_inches="tight", dpi=300)
+    plt.close()
+    
+    print(f"CV demographics comparison saved to: {save_path}")
+
+
+def plot_demographics_impact(results_with_demo, results_no_demo, save_path="results/demographics_impact.png"):
+    """
+    Visualize the impact of including demographics on model performance.
+    
+    Args:
+        results_with_demo: dict with CV results including demographics
+        results_no_demo: dict with CV results excluding demographics
+        save_path: output filepath
+    """
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    methods = ['IS (F1)', 'IS (Acc)', 'ES (F1)', 'ES (Acc)']
+    
+    with_demo_scores = [
+        results_with_demo["IS_cv"]["pat_f1"],
+        results_with_demo["IS_cv"]["pat_acc"],
+        results_with_demo["ES_cv"]["pat_f1"],
+        results_with_demo["ES_cv"]["pat_acc"]
+    ]
+    
+    without_demo_scores = [
+        results_no_demo["IS_cv"]["pat_f1"],
+        results_no_demo["IS_cv"]["pat_acc"],
+        results_no_demo["ES_cv"]["pat_f1"],
+        results_no_demo["ES_cv"]["pat_acc"]
+    ]
+    
+    # Calculate percentage difference
+    pct_diff = [(w - wo) / wo * 100 if wo > 0 else 0 
+                for w, wo in zip(with_demo_scores, without_demo_scores)]
+    
+    colors = ['green' if d > 0 else 'red' for d in pct_diff]
+    
+    bars = ax.barh(methods, pct_diff, color=colors, alpha=0.7)
+    
+    ax.set_xlabel('Performance Change (%)')
+    ax.set_title('Impact of Demographics (sex/age) on Model Performance\n(Positive = Improvement with demographics)')
+    ax.axvline(x=0, color='black', linestyle='-', linewidth=0.8)
+    ax.grid(axis='x', alpha=0.3)
+    
+    # Add value labels
+    for i, (bar, pct) in enumerate(zip(bars, pct_diff)):
+        width = bar.get_width()
+        label_x = width + (0.5 if width > 0 else -0.5)
+        ax.text(label_x, bar.get_y() + bar.get_height()/2,
+                f'{pct:+.2f}%',
+                ha='left' if width > 0 else 'right',
+                va='center',
+                fontsize=10,
+                fontweight='bold')
+    
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, bbox_inches="tight", dpi=300)
+    plt.close()
+    
+    print(f"Demographics impact plot saved to: {save_path}")
+
+
+def plot_all_phases_comparison(results, save_path="results/all_phases_comparison.png"):
+    """
+    Create comprehensive comparison across all experimental phases.
+    
+    Args:
+        results: Complete results dictionary from all phases
+        save_path: output filepath
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    
+    # Phase 1: Dataset A internal (IS and ES with all/top5)
+    ax1 = axes[0, 0]
+    labels_a = ['IS (All)', 'IS (Top5)', 'ES (All)', 'ES (Top5)']
+    f1_a = [
+        results["dataset_A_internal"]["IS"]["pat_f1"],
+        results["dataset_A_internal"]["IS_top5"]["pat_f1"],
+        results["dataset_A_internal"]["ES"]["pat_f1"],
+        results["dataset_A_internal"]["ES_top5"]["pat_f1"]
+    ]
+    bars_a = ax1.bar(labels_a, f1_a, alpha=0.7, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
+    ax1.set_ylabel('Patient-level F1-score')
+    ax1.set_title('Phase 1: Dataset A (Internal Test Set)')
+    ax1.set_ylim(0, max(f1_a) * 1.15)
+    ax1.grid(axis='y', alpha=0.3)
+    
+    for bar, score in zip(bars_a, f1_a):
+        height = bar.get_height()
+        ax1.text(bar.get_x() + bar.get_width()/2, height,
+                f'{score:.3f}', ha='center', va='bottom', fontsize=9)
+    
+    # Phase 1: Dataset B external validation
+    ax2 = axes[0, 1]
+    labels_b = ['IS (All)', 'IS (Top5)', 'ES (All)', 'ES (Top5)']
+    f1_b = [
+        results["dataset_B_external_validation"]["IS"]["pat_f1"],
+        results["dataset_B_external_validation"]["IS_top5"]["pat_f1"],
+        results["dataset_B_external_validation"]["ES"]["pat_f1"],
+        results["dataset_B_external_validation"]["ES_top5"]["pat_f1"]
+    ]
+    bars_b = ax2.bar(labels_b, f1_b, alpha=0.7, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
+    ax2.set_ylabel('Patient-level F1-score')
+    ax2.set_title('Phase 1: Dataset B (External Validation)')
+    ax2.set_ylim(0, max(f1_b) * 1.15)
+    ax2.grid(axis='y', alpha=0.3)
+    
+    for bar, score in zip(bars_b, f1_b):
+        height = bar.get_height()
+        ax2.text(bar.get_x() + bar.get_width()/2, height,
+                f'{score:.3f}', ha='center', va='bottom', fontsize=9)
+    
+    # Phase 2 vs 3: Cross-validation comparison
+    ax3 = axes[1, 0]
+    x_pos = np.arange(2)
+    width = 0.35
+    
+    cv_with = [
+        results["dataset_AB_with_demographics"]["IS_cv"]["pat_f1"],
+        results["dataset_AB_with_demographics"]["ES_cv"]["pat_f1"]
+    ]
+    cv_without = [
+        results["dataset_AB_without_demographics"]["IS_cv"]["pat_f1"],
+        results["dataset_AB_without_demographics"]["ES_cv"]["pat_f1"]
+    ]
+    cv_with_std = [
+        results["dataset_AB_with_demographics"]["IS_cv"]["pat_f1_std"],
+        results["dataset_AB_with_demographics"]["ES_cv"]["pat_f1_std"]
+    ]
+    cv_without_std = [
+        results["dataset_AB_without_demographics"]["IS_cv"]["pat_f1_std"],
+        results["dataset_AB_without_demographics"]["ES_cv"]["pat_f1_std"]
+    ]
+    
+    bars_with = ax3.bar(x_pos - width/2, cv_with, width, label='With demographics',
+                        yerr=cv_with_std, capsize=5, alpha=0.8, color='#1f77b4')
+    bars_without = ax3.bar(x_pos + width/2, cv_without, width, label='Without demographics',
+                           yerr=cv_without_std, capsize=5, alpha=0.8, color='#ff7f0e')
+    
+    ax3.set_ylabel('F1-score (mean ± std)')
+    ax3.set_title('Phase 2 vs 3: A+B Cross-Validation')
+    ax3.set_xticks(x_pos)
+    ax3.set_xticklabels(['IS', 'ES'])
+    ax3.legend()
+    ax3.set_ylim(0, 1.1)
+    ax3.grid(axis='y', alpha=0.3)
+    
+    for bars in [bars_with, bars_without]:
+        for bar in bars:
+            height = bar.get_height()
+            ax3.text(bar.get_x() + bar.get_width()/2, height,
+                    f'{height:.3f}', ha='center', va='bottom', fontsize=8)
+    
+    # Summary: Best performance across all phases
+    ax4 = axes[1, 1]
+    
+    summary_labels = [
+        'A: IS (All)',
+        'A: IS (Top5)',
+        'B: IS (All)',
+        'B: IS (Top5)',
+        'A+B (w/ demo): IS',
+        'A+B (w/o demo): IS'
+    ]
+    
+    summary_f1 = [
+        results["dataset_A_internal"]["IS"]["pat_f1"],
+        results["dataset_A_internal"]["IS_top5"]["pat_f1"],
+        results["dataset_B_external_validation"]["IS"]["pat_f1"],
+        results["dataset_B_external_validation"]["IS_top5"]["pat_f1"],
+        results["dataset_AB_with_demographics"]["IS_cv"]["pat_f1"],
+        results["dataset_AB_without_demographics"]["IS_cv"]["pat_f1"]
+    ]
+    
+    colors_summary = plt.cm.viridis(np.linspace(0.2, 0.9, len(summary_f1)))
+    bars_summary = ax4.barh(summary_labels, summary_f1, color=colors_summary, alpha=0.8)
+    
+    ax4.set_xlabel('Patient-level F1-score')
+    ax4.set_title('Summary: Instance-Space (IS) Performance Across All Phases')
+    ax4.set_xlim(0, max(summary_f1) * 1.15)
+    ax4.grid(axis='x', alpha=0.3)
+    
+    for bar, score in zip(bars_summary, summary_f1):
+        width = bar.get_width()
+        ax4.text(width, bar.get_y() + bar.get_height()/2,
+                f' {score:.3f}', ha='left', va='center', fontsize=9)
+    
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, bbox_inches="tight", dpi=300)
+    plt.close()
+    
+    print(f"All phases comparison saved to: {save_path}")
