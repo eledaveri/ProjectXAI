@@ -1,122 +1,264 @@
-# ProjectXAI: Hodgkin Lymphoma Classification with XAI
+# Lymphoma Classification Project
 
-A comprehensive machine learning pipeline for lymphoma classification (Hodgkin Lymphoma vs Others) using two distinct approaches: Instance-Space (IS) and Embedded-Space (ES), with SHAP-based explainability. Includes multi-phase validation strategy with internal and external cohorts.
+Machine learning pipeline for classifying Hodgkin Lymphoma (HL) vs. other lymphomas using medical imaging features with explainable AI (XAI) techniques.
+
+## Project Overview
+
+This project implements and compares two classification approaches:
+- **Instance-Space (IS)**: VOI-level predictions aggregated to patient-level
+- **Embedded-Space (ES)**: Patient-level features from aggregated VOI statistics
+
+The pipeline includes:
+- Internal validation on dataset A
+- External validation on dataset B
+- Cross-validation with/without demographics (sex, age)
+- SHAP-based feature importance analysis
+- Comprehensive visualizations
+
+---
 
 ## Project Structure
 
 ```
-project/
-│
-├── config.py                     # Configuration parameters (paths, CV folds, random state)
-├── data_utils.py                 # Data loading, patient-stratified splitting
-├── model_IS.py                   # Instance-Space model (VOI-level predictions → patient aggregation)
-├── model_ES.py                   # Embedded-Space model (patient-level embeddings)
-├── shap_utils.py                 # SHAP explainability utilities
-├── evaluation.py                 # Metrics computation and reporting
-├── visualization_utils.py        # Formatted output and plotting functions
-├── main.py                       # Main experimental pipeline (3 phases)
-│
-├── data/                         # Input datasets
-│   ├── dataset_A.csv             # Internal dataset (36 patients)
-│   ├── dataset_B.csv             # External validation dataset
-│   └── dataset_A+B.csv           # Combined dataset (A+B, for Phase 2-3)
-│
-└── results/                      # Output directory (auto-generated)
-    ├── summary_complete.json              # Complete results (all phases)
-    ├── performance_comparison_A.png       # Model comparison (internal A test)
-    ├── performance_comparison_B.png       # Model comparison (external B test)
-    ├── IS_summary.png                    # SHAP feature impact
-    └── IS_bar.png                        # SHAP feature ranking
+ProjectXAI/
+├── data/
+│   ├── dataset_A.csv          # Internal dataset (with demographics)
+│   ├── dataset_B.csv          # External validation dataset
+│   └── dataset_A+B.csv        # Combined dataset (without demographics)
+├── results/
+│   ├── performance_comparison_A.png
+│   ├── performance_comparison_B.png
+│   ├── cv_demographics_comparison.png
+│   ├── demographics_impact.png
+│   ├── all_phases_comparison.png
+│   ├── IS_summary.png
+│   ├── IS_bar.png
+│   └── summary_complete.json
+├── config.py                  # Configuration parameters
+├── data_utils.py             # Data loading and preprocessing
+├── model_IS.py               # Instance-Space models
+├── model_ES.py               # Embedded-Space models
+├── shap_utils.py             # SHAP explainability
+├── evaluation.py             # Metrics and evaluation
+├── visualization_utils.py    # Plotting functions
+├── main.py                   # Main pipeline
+├── requirements.txt          # Python dependencies
+└── README.md                 # This file
 ```
 
-## Project Overview
+---
 
-### Datasets
+## Installation
 
-#### Dataset A (Internal)
-- **Path**: `data/dataset_A.csv`
-- **36 patients** with **349 VOIs (Volumes of Interest)**
-- **111 radiomic features** per VOI
-- **Binary classification**: HL (Hodgkin Lymphoma) vs Others
-- **Class imbalance**: 
-  - VOI-level: 15.2% HL, 84.8% Others
-  - Patient-level: 25.0% HL, 75.0% Others
-- **Variable VOIs per patient**: 1-29 (mean: 9.69, median: 8.0)
-- **Usage**: Training and internal validation (70/30 split)
-
-#### Dataset B (External Validation)
-- **Path**: `data/dataset_B.csv`
-- Independent external cohort
-- Same feature set and classification task
-- **Usage**: External validation of models trained on Dataset A (Phase 1)
-
-#### Dataset A+B (Combined)
-- **Path**: `data/dataset_A+B.csv`
-- Preexisting combined file (Dataset A + Dataset B merged)
-- **Usage**: Cross-validation on larger combined dataset (Phase 2-3)
-- Same features as individual datasets
-
-### Experimental Design
-
-Three-phase validation strategy:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                  PHASE 1: INTERNAL & EXTERNAL                   │
-├─────────────────────────────────────────────────────────────────┤
-│ Files: dataset_A.csv + dataset_B.csv                            │
-│                                                                  │
-│ Train on Dataset A (70%)                                        │
-│ ├─ Test on Dataset A (30% internal test)                        │
-│ └─ Test on Dataset B (external validation)                      │
-│                                                                  │
-│ [4 model configurations per test:                               │
-│  IS/all, IS/top5, ES/all, ES/top5]                             │
-└─────────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────────┐
-│     PHASE 2: CV ON COMBINED DATASET WITH DEMOGRAPHICS            │
-├─────────────────────────────────────────────────────────────────┤
-│ File: dataset_A+B.csv                                            │
-│                                                                  │
-│ Cross-validation on A+B (3-fold, stratified)                   │
-│ Keep all features (including sex/age)                           │
-│ Evaluate IS and ES approaches                                   │
-└─────────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────────┐
-│    PHASE 3: CV ON COMBINED DATASET WITHOUT DEMOGRAPHICS          │
-├─────────────────────────────────────────────────────────────────┤
-│ File: dataset_A+B.csv                                            │
-│                                                                  │
-│ Cross-validation on A+B (3-fold, stratified)                   │
-│ Exclude sex/age features                                        │
-│ Evaluate impact of demographic features                         │
-└─────────────────────────────────────────────────────────────────┘
+### 1. Clone the repository
+```bash
+git clone <repository-url>
+cd ProjectXAI
 ```
 
-## Methodology
+### 2. Create a virtual environment (recommended)
+```bash
+# Using conda
+conda create -n lymphoma python=3.10
+conda activate lymphoma
 
-### Two Complementary Approaches
+# Or using venv
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-#### 1. **Instance-Space (IS)**
-- Operates at VOI level (individual volume of interest)
-- XGBoost classifier predicts each VOI independently
-- Aggregates VOI predictions to patient level via majority voting
-- Suitable for fine-grained, VOI-level analysis
-- Provides interpretability at multiple levels
+### 3. Install dependencies
+```bash
+pip install -r requirements.txt
+```
 
-#### 2. **Embedded-Space (ES)**
-- Aggregates VOI features per patient (min, max, mean, std)
-- Creates patient-level embeddings (dimensionality: 111 × 4 = 444)
-- Single XGBoost prediction per patient
-- Reduces noise and variability across VOIs
-- More efficient for patient-level decisions
+**Note**: If you encounter NumPy 2.x compatibility issues, run:
+```bash
+pip install "numpy<2.0"
+```
 
-### Model Configuration
+---
 
-Both approaches use XGBoost with identical hyperparameters:
+## Configuration
 
+Edit `config.py` to customize experimental parameters:
+
+```python
+# Data split parameters
+TEST_SIZE = 0.3          # Train/test split ratio
+N_SPLITS = 3             # Number of CV folds
+RANDOM_STATE = 42        # Random seed
+
+# Dataset paths
+DATASET_A_PATH = "data/dataset_A.csv"
+DATASET_B_PATH = "data/dataset_B.csv"
+DATASET_AB_PATH = "data/dataset_A+B.csv"
+
+# Feature selection
+EXCLUDE_FEATURES = ["sex", "age"]  # Demographics to exclude
+TOP_K_FEATURES = 5                 # Top SHAP features to use
+
+# Merge strategy for Phase 2
+MERGE_STRATEGY = "common_patients"  # Options: "common_patients", "fill_missing", "drop_demographics"
+```
+
+### Merge Strategies
+
+- **`common_patients`** (Recommended): Uses only patients present in both datasets, copying demographics from A to B
+- **`fill_missing`**: Fills missing demographics with mean (age) or mode (sex)
+- **`drop_demographics`**: Removes demographics from both datasets
+
+---
+
+## Usage
+
+Run the complete pipeline:
+
+```bash
+python main.py
+```
+
+This executes three experimental phases:
+
+### **Phase 1**: Internal & External Validation
+- Train on dataset A (70/30 split)
+- Validate internally on dataset A test set
+- Validate externally on dataset B
+- Compare models: IS (all features), IS (top 5), ES (all features), ES (top 5)
+
+### **Phase 2**: Cross-Validation WITH Demographics
+- Merge datasets A and B using configured strategy
+- 3-fold cross-validation with sex and age features
+- Compare IS vs ES performance
+
+### **Phase 3**: Cross-Validation WITHOUT Demographics
+- Load combined dataset A+B.csv
+- 3-fold cross-validation excluding sex and age
+- Assess impact of demographics on performance
+
+---
+
+## Results Summary
+
+### Dataset A (Internal Test Set)
+
+| Model | VOI Acc | VOI F1 | Patient Acc | Patient F1 |
+|-------|---------|--------|-------------|------------|
+| IS (All) | 90.0% | 40.0% | **81.8%** | 50.0% |
+| IS (Top 5) | 90.0% | 52.6% | **90.9%** | **80.0%** |
+| ES (All) | - | - | **100%** ⚠️ | **100%** ⚠️ |
+| ES (Top 5) | - | - | **100%** ⚠️ | **100%** ⚠️ |
+
+ **Warning**: Perfect scores may indicate overfitting. See external validation below.
+
+### Dataset B (External Validation)
+
+| Model | VOI Acc | VOI F1 | Patient Acc | Patient F1 |
+|-------|---------|--------|-------------|------------|
+| IS (All) | 82.2% | 59.1% | **58.3%** | 39.0% |
+| IS (Top 5) | 81.7% | 58.5% | **61.7%** | **46.5%** |
+| ES (All) | - | - | **100%** ⚠️ | **100%** ⚠️ |
+| ES (Top 5) | - | - | **100%** ⚠️ | **100%** ⚠️ |
+
+### Cross-Validation (A+B Combined)
+
+| Model | With Demographics | Without Demographics |
+|-------|-------------------|---------------------|
+| IS | F1: 71.1% (±7.7%) | F1: 68.7% (±8.3%) |
+| ES | F1: 100% (±0%) ⚠️ | F1: 100% (±0%) ⚠️ |
+
+**Key Finding**: Demographics (sex/age) improve IS performance by ~3.5%, but ES shows suspicious perfect scores.
+
+---
+
+## Top 5 Most Important Features (SHAP)
+
+1. **region** - Anatomical region
+2. **A41** - Radiomics feature
+3. **A49** - Radiomics feature
+4. **A29** - Radiomics feature
+5. **A92** - Radiomics feature
+
+---
+
+## Visualizations
+
+### 1. Performance Comparison - Dataset A
+![Performance A](results/performance_comparison_A.png)
+*Comparison of IS and ES models on internal test set*
+
+### 2. Performance Comparison - Dataset B
+![Performance B](results/performance_comparison_B.png)
+*External validation results showing generalization performance*
+
+### 3. Cross-Validation Demographics Comparison
+![CV Comparison](results/cv_demographics_comparison.png)
+*Impact of including sex/age on F1-score and accuracy*
+
+### 4. Demographics Impact Analysis
+![Demographics Impact](results/demographics_impact.png)
+*Percentage change in performance with/without demographics*
+
+### 5. All Phases Overview
+![All Phases](results/all_phases_comparison.png)
+*Comprehensive comparison across all experimental phases*
+
+### 6. SHAP Feature Importance
+![SHAP Summary](results/IS_summary.png)
+*Feature importance and impact on model predictions*
+
+![SHAP Bar](results/IS_bar.png)
+*Feature importance ranking*
+
+---
+
+## Output Files
+
+### Visualizations (7 PNG files)
+- `performance_comparison_A.png` - Dataset A results
+- `performance_comparison_B.png` - Dataset B results
+- `cv_demographics_comparison.png` - CV with/without demographics
+- `demographics_impact.png` - Impact analysis
+- `all_phases_comparison.png` - Complete overview
+- `IS_summary.png` - SHAP feature importance
+- `IS_bar.png` - SHAP ranking
+
+### Data Files
+- `summary_complete.json` - Complete numerical results
+
+---
+
+## Key Components
+
+### Data Utilities (`data_utils.py`)
+- `load_data()` - Load and preprocess CSV data
+- `load_data_exclude_features()` - Load data excluding specified features
+- `merge_datasets_with_demographics()` - Merge A+B with demographic handling
+- `split_by_patient()` - Patient-stratified train/test split
+- `align_features()` - Align feature sets across datasets
+
+### Models
+
+#### Instance-Space (`model_IS.py`)
+- VOI-level predictions with XGBoost
+- Patient-level aggregation via majority voting
+- Cross-validation with patient grouping
+
+#### Embedded-Space (`model_ES.py`)
+- Patient-level feature aggregation (min, max, mean, std)
+- Direct patient-level classification
+- Stratified K-fold cross-validation
+
+### Explainability (`shap_utils.py`)
+- SHAP TreeExplainer for feature importance
+- Summary and bar plots
+- Top-K feature selection
+
+---
+
+## Model Details
+
+### XGBoost Configuration
 ```python
 XGBClassifier(
     objective="binary:logistic",
@@ -131,254 +273,96 @@ XGBClassifier(
 ```
 
 ### Cross-Validation Strategy
+- **Instance-Space**: StratifiedGroupKFold (maintains patient grouping)
+- **Embedded-Space**: StratifiedKFold (patient-level already)
+- **Folds**: 3 (configurable)
+- **Stratification**: By target class (HL vs Others)
 
-- **3-fold stratified cross-validation** on patient level
-- Uses `StratifiedGroupKFold` to respect patient-level stratification
-- Prevents patient leakage between training and validation folds
-- Maintains class distribution in each fold
+---
 
-### Feature Selection
+## Known Issues & Recommendations
 
-- **SHAP analysis** identifies top-K most important features
-- Default K=5 features from 111 available
-- Compares full model vs. reduced model performance
-- Assesses feature redundancy
+### 1. Embedded-Space Overfitting
+**Issue**: ES shows perfect accuracy (100%) on both internal and external validation.
 
-## Configuration
+**Possible Causes**:
+- Small dataset size relative to feature dimensionality
+- Feature aggregation creates too-distinctive patient signatures
+- Potential data leakage
 
-Edit `config.py` to customize:
+**Recommendations**:
+- Use IS models for production (more robust)
+- Investigate ES feature engineering
+- Collect more diverse data
+- Consider nested cross-validation
 
-```python
-# Data split
-TEST_SIZE = 0.3              # Train/test split ratio for Phase 1
-N_SPLITS = 3                 # Number of CV folds (Phases 2 & 3)
-RANDOM_STATE = 42            # Reproducibility seed
+### 2. External Validation Performance Drop
+**Issue**: IS accuracy drops from 81.8% (internal) to 58.3% (external).
 
-# Dataset paths
-DATASET_A_PATH = "data/dataset_A.csv"         # Internal training dataset
-DATASET_B_PATH = "data/dataset_B.csv"         # External validation dataset
-DATASET_AB_PATH = "data/dataset_A+B.csv"      # Combined dataset for final CV
+**Possible Causes**:
+- Dataset shift between A and B
+- Different patient populations
+- Missing features in dataset B
 
-# Feature engineering
-EXCLUDE_FEATURES = ["sex", "age"]  # Features to exclude in Phase 3
-TOP_K_FEATURES = 5                 # Features to select in Phase 1
+**Recommendations**:
+- Top 5 features perform better on external data (61.7% vs 58.3%)
+- Feature selection improves generalization
+- Focus on robust features (region, A41, A49, A29, A92)
 
-# Output
-RESULTS_DIR = "results"
-SHAP_PREFIX = "IS"
-```
+### 3. Demographics Impact
+**Observation**: Sex/age improve IS F1 by ~3.5% (71.1% → 68.7%)
 
-## Usage
+**Recommendations**:
+- Include demographics when available
+- 78 common patients provide good statistical power
+- Consider sensitivity analysis with different merge strategies
 
-### Requirements
+---
 
+## Troubleshooting
+
+### NumPy Compatibility Error
 ```bash
-pip install pandas numpy scikit-learn xgboost shap matplotlib joblib
+# Error: numpy.core.multiarray failed to import
+pip uninstall numpy -y
+pip install "numpy>=1.24.0,<2.0"
 ```
 
-### Dataset Setup
-
-Ensure the `data/` directory contains all three files:
-
-```
-data/
-├── dataset_A.csv           # Internal (required for Phase 1)
-├── dataset_B.csv           # External validation (required for Phase 1)
-└── dataset_A+B.csv         # Combined (required for Phases 2-3)
-```
-
-### Run Full Pipeline (All 3 Phases)
-
+### Missing Dependencies
 ```bash
-python main.py
+pip install -r requirements.txt --force-reinstall
 ```
 
-This executes sequentially:
-1. **Phase 1**: Train on A (70%), test on A (30%), validate on B
-2. **Phase 2**: Cross-validation on A+B with all features (including demographics)
-3. **Phase 3**: Cross-validation on A+B without demographic features (sex/age)
-
-### Output Files
-
-All results are saved to `results/` directory:
-
-```
-results/
-├── summary_complete.json              # Consolidated results
-├── performance_comparison_A.png       # Models on internal A test set
-├── performance_comparison_B.png       # Models on external B test set
-├── IS_summary.png                    # SHAP feature impact
-└── IS_bar.png                        # SHAP feature ranking
+### SHAP Installation Issues
+```bash
+# On Windows, may need Visual C++ Build Tools
+pip install shap --no-cache-dir
 ```
 
-## Results
-
-### Phase 1: Internal vs. External Validation
-
-#### Dataset A (Internal Test)
-Models trained and tested on Dataset A (70/30 split):
-
-| Approach | Features | VOI Acc | VOI F1 | Patient Acc | Patient F1 |
-|----------|----------|---------|--------|-------------|------------|
-| **IS** | All (111) | 0.9111 | 0.5000 | 0.8182 | 0.5000 |
-| **IS** | Top 5 | 0.9000 | 0.4000 | 0.7273 | 0.0000 |
-| **ES** | All (111) | - | - | 1.0000 | 1.0000 |
-| **ES** | Top 5 | - | - | 1.0000 | 1.0000 |
-
-#### Dataset B (External Validation)
-Models trained on Dataset A, tested on external Dataset B:
-
-| Approach | Features | VOI Acc | VOI F1 | Patient Acc | Patient F1 |
-|----------|----------|---------|--------|-------------|------------|
-| **IS** | All (111) | 0.1154 | 0.2069 | 0.0417 | 0.0800 |
-| **IS** | Top 5 | 0.2179 | 0.3579 | 0.1250 | 0.2222 |
-| **ES** | All (111) | - | - | 1.0000 | 1.0000 |
-| **ES** | Top 5 | - | - | 1.0000 | 1.0000 |
-
-#### Cross-Validation (3-fold) on Dataset A
-
-**Instance-Space (IS)**
-```
-Patient-level metrics (aggregated from VOI predictions):
-  Accuracy: 0.833 ± 0.068
-  F1-score: 0.667 ± 0.000
-```
-
-**Embedded-Space (ES)**
-```
-Patient-level metrics:
-  Accuracy: 1.000 ± 0.000
-  F1-score: 1.000 ± 0.000
-```
-
-### Phase 2: Combined Dataset WITH Demographics (sex/age)
-
-Cross-validation on dataset_A+B.csv with all demographic features:
-
-- **IS model**: Patient-level F1 = [reported in output]
-- **ES model**: Patient-level F1 = [reported in output]
-- **Interpretation**: Baseline performance with full feature set
-
-### Phase 3: Combined Dataset WITHOUT Demographics
-
-Cross-validation on dataset_A+B.csv excluding sex/age:
-
-- **IS model**: Patient-level F1 = [reported in output]
-- **ES model**: Patient-level F1 = [reported in output]
-- **Interpretation**: Impact of demographic feature removal
-
-## 🔍 SHAP Explainability
-
-### Top 5 Most Important Features
-
-From SHAP analysis on Dataset A training set:
-
-1. **age** - Patient age (demographic)
-2. **sex** - Patient sex 0=M, 1=F (demographic)
-3. **A41** - Radiomic feature
-4. **A63** - Radiomic feature
-5. **A92** - Radiomic feature
-
-### SHAP Visualizations
-
-Generated files (auto-saved):
-
-- **results/IS_bar.png** - Feature importance ranking
-- **results/IS_summary.png** - Feature impact on predictions
-- **results/performance_comparison_A.png** - Internal test comparison
-- **results/performance_comparison_B.png** - External test comparison
-
-### Key Insights
-
-- ✅ Using **top 5 features** maintains comparable performance to full feature set
-- ⚠️ **IS model generalizes poorly** to external dataset
-- ✅ **ES model maintains consistent performance** on both internal and external
-- 📊 **Demographic features important**: Age and sex among top predictors
-- 🔗 **High feature redundancy**: 111 features can be reduced to 5 with similar performance
-
-## ⚠️ Limitations & Warnings
-
-1. **Small Dataset**: Only 36 patients in Dataset A
-   - High feature-to-sample ratio (111:36 ≈ 3:1)
-   - Increased overfitting risk
-
-2. **Perfect ES Accuracy**: F1=1.0 on both internal and external tests
-   - Unlikely in real-world scenario
-   - Possible indicators: data leakage, small validation set
-
-3. **Poor IS Generalization**: 81.8% → 4.2% accuracy drop
-   - Suggests Dataset A/B mismatch
-   - May indicate preprocessing differences
-
-4. **Class Imbalance**: Only 25% positive class
-   - May skew metrics
-   - F1-score preferred over accuracy
-
-5. **External Validation Required**: 
-   - Results should be validated on larger independent cohort
-   - Current findings may not generalize broadly
-
-## Implementation Details
-
-### Patient-Level Aggregation (Instance-Space)
-
-**Majority Voting Strategy** (default):
+### Memory Issues
+Reduce dataset size or use sampling:
 ```python
-def aggregate_majority(y_pred, patient_ids):
-    return df.groupby("patient")["pred"].agg(
-        lambda x: x.value_counts().idxmax()
-    )
+# In config.py, add:
+SAMPLE_SIZE = 1000  # Limit number of VOIs
 ```
 
-### Patient-Level Embedding (Embedded-Space)
+---
 
-Statistical aggregation per patient:
-```python
-def create_patient_embedding(X, y, patient_ids):
-    agg = df.groupby("patient").agg(["min", "max", "mean", "std"])
-    # Output: (n_patients, 111 × 4) = (n_patients, 444)
-    return agg, y_patient
-```
+## Dependencies
 
-### Data Alignment
+- **numpy** >= 1.24.0, < 2.0
+- **pandas** >= 2.0.0
+- **scikit-learn** >= 1.3.0
+- **xgboost** >= 2.0.0
+- **shap** >= 0.43.0
+- **matplotlib** >= 3.7.0
+- **joblib** >= 1.3.0
 
-When combining datasets with different features:
-```python
-def align_features(X_source, X_target):
-    # Keep only common features, in source order
-    common = [col for col in X_source.columns if col in X_target.columns]
-    return X_target[common]
-```
+---
 
-## Model Saving & Loading
 
-```python
-from joblib import dump, load
-from model_IS import save_model
 
-# Save
-save_model(model, "results/model_IS.joblib")
 
-# Load
-model = load("results/model_IS.joblib")
-predictions = model.predict(X_new)
-```
-
-## SHAP Analysis
-
-```python
-from shap_utils import explain_shap, top_shap_features
-
-# Compute SHAP values
-shap_vals = explain_shap(model, X_train, "results/IS")
-
-# Get top features
-top5 = top_shap_features(shap_vals, feature_names, k=5)
-
-# Visualizations auto-saved
-# - results/IS_summary.png
-# - results/IS_bar.png
-```
 
 
 
