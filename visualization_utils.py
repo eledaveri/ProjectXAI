@@ -13,7 +13,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from collections import Counter
-
+import seaborn as sns
 
 def print_separator(title="", width=80):
     """
@@ -580,3 +580,88 @@ def plot_all_phases_comparison(results, save_path="results/all_phases_comparison
     plt.close()
     
     print(f"All phases comparison saved to: {save_path}")
+
+def plot_feature_distribution(X, y, feature_names, save_path="results/feature_distribution.png"):
+    """
+    Plot the distribution (KDE) of two specified features colored by class.
+    
+    Args:
+        X: Feature matrix (DataFrame)
+        y: Target labels (Series or array)
+        feature_names: List of two feature names to plot
+        save_path: output filepath
+    """
+    if len(feature_names) < 2:
+        print("Error: plot_feature_distribution requires at least two features.")
+        return
+
+    feat1, feat2 = feature_names[0], feature_names[1]
+    
+    # Ensure features exist and are in the dataframe
+    X_plot = X[[feat1, feat2]].copy()
+    X_plot['target'] = y
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    
+    # Plot 1: Distribution of Feature 1
+    sns.kdeplot(data=X_plot, x=feat1, hue='target', fill=True, common_norm=False, palette='coolwarm', ax=axes[0])
+    axes[0].set_title(f'Distribution of {feat1} by Class')
+    axes[0].legend(title='Class', labels=['Others', 'HL'])
+
+    # Plot 2: Distribution of Feature 2
+    sns.kdeplot(data=X_plot, x=feat2, hue='target', fill=True, common_norm=False, palette='coolwarm', ax=axes[1])
+    axes[1].set_title(f'Distribution of {feat2} by Class')
+    axes[1].legend(title='Class', labels=['Others', 'HL'])
+
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, bbox_inches="tight", dpi=300)
+    plt.close()
+    
+    print(f"Feature distribution plot saved to: {save_path}")
+
+def plot_feature_scatter(X, y, feature_names, save_path="results/feature_scatter.png"):
+    """
+    Create a scatter plot of two specified features colored by class.
+    
+    Args:
+        X: Feature matrix (DataFrame)
+        y: Target labels (Series or array)
+        feature_names: List of two feature names to plot (x and y axis)
+        save_path: output filepath
+    """
+    if len(feature_names) < 2:
+        print("Error: plot_feature_scatter requires at least two features.")
+        return
+        
+    feat_x, feat_y = feature_names[0], feature_names[1]
+
+    # Ensure features exist and are in the dataframe
+    X_plot = X[[feat_x, feat_y]].copy()
+    X_plot['target'] = y
+
+    plt.figure(figsize=(8, 6))
+    
+    # Scatter plot
+    sns.scatterplot(
+        data=X_plot, 
+        x=feat_x, 
+        y=feat_y, 
+        hue='target', 
+        palette=['#1f77b4', '#d62728'], 
+        alpha=0.6, 
+        s=50,
+        legend='full'
+    )
+
+    plt.title(f'Scatter Plot of {feat_x} vs {feat_y} by Class')
+    plt.xlabel(feat_x)
+    plt.ylabel(feat_y)
+    plt.legend(title='Class', labels=['Others', 'HL'])
+    plt.grid(True, linestyle='--', alpha=0.5)
+
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, bbox_inches="tight", dpi=300)
+    plt.close()
+    
+    print(f"Feature scatter plot saved to: {save_path}")
