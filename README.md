@@ -14,36 +14,40 @@ The pipeline includes:
 - Cross-validation with/without demographics (sex, age)
 - SHAP-based feature importance analysis
 - Comprehensive visualizations
+- Investigation into model ES overfitting
 
 ---
 
 ## Project Structure
 
 ```
-ProjectXAI/
-├── data/
-│   ├── dataset_A.csv          # Internal dataset (with demographics)
-│   ├── dataset_B.csv          # External validation dataset
-│   └── dataset_A+B.csv        # Combined dataset (without demographics)
-├── results/
-│   ├── performance_comparison_A.png
-│   ├── performance_comparison_B.png
-│   ├── cv_demographics_comparison.png
-│   ├── demographics_impact.png
-│   ├── all_phases_comparison.png
-│   ├── IS_summary.png
-│   ├── IS_bar.png
-│   └── summary_complete.json
-├── config.py                  # Configuration parameters
-├── data_utils.py             # Data loading and preprocessing
-├── model_IS.py               # Instance-Space models
-├── model_ES.py               # Embedded-Space models
-├── shap_utils.py             # SHAP explainability
-├── evaluation.py             # Metrics and evaluation
-├── visualization_utils.py    # Plotting functions
-├── main.py                   # Main pipeline
-├── requirements.txt          # Python dependencies
-└── README.md                 # This file
+ProjectXAI/ 
+├── data/ 
+│   ├── dataset_A.csv                       # Internal dataset (with demographics)
+│   ├── dataset_B.csv                       # External validation dataset 
+│   └── dataset_A+B.csv                     # Combined dataset (without demographics) 
+├── results/ 
+│   ├── performance_comparison_A.png 
+│   ├── performance_comparison_B.png 
+│   ├── cv_demographics_comparison.png 
+│   ├── demographics_impact.png 
+│   ├── all_phases_comparison.png 
+│   ├── IS_summary.png 
+│   ├── IS_bar.png 
+│   ├── voi_distribution_A41_A49.png        # Feature distribution at VOI level
+│   ├── pat_scatter_A41_mean_A49_mean.png   # Scatter plot of aggregated features at Patient level
+│   └── summary_complete.json 
+├── config.py                               # Configuration parameters
+├── data_utils.py                           # Data loading and preprocessing
+├── model_IS.py                             # Instance-Space Models
+├── model_ES.py                             # Embedded-Space Models
+├── shap_utils.py                           # SHAP explainability
+├── evaluation.py                           # Metrics and evaluation
+├── visualization_utils.py                  # Plotting functions
+├── main.py                                 # Main pipeline
+├── requirements.txt                        # Python dependencies
+└── README.md                               # This file
+
 ```
 
 ---
@@ -136,6 +140,11 @@ This executes three experimental phases:
 - 3-fold cross-validation excluding sex and age
 - Assess impact of demographics on performance
 
+### **Phase 4**: Overfitting Investigation
+
+- Analyzes feature distributions at VOI level (e.g., A41, A49)
+- Generates scatter plots at patient level with aggregated statistics
+- Helps diagnose why Embedded-Space models show perfect accuracy
 ---
 
 ## Results Summary
@@ -210,11 +219,19 @@ This executes three experimental phases:
 ![SHAP Bar](results/IS_bar.png)
 *Feature importance ranking*
 
+### 7. Feature Analysis (ES Overfitting Investigation)
+![VOI Distribution](results/voi_distribution_A41_A49.png)
+*Distribution of radiomic features A41 and A49 at the VOI level, colored by class.*
+This plot shows the distribution of the raw (Instance-Space) radiomic features A41 and A49 across the two classes (HL vs. Others). A high degree of overlap between the class distributions here suggests that separation at the individual VOI level is challenging. This explains why the Instance-Space (IS) models are robust but not perfect (F1-score of 50.0% to 80.0% on internal data)
+
+![Patient Scatter](results/pat_scatter_A41_mean_A49_mean.png)
+*Scatter plot of the patient-level mean of features A41 vs A49, to investigate excessive separability in the Embedded-Space.*
+This scatter plot shows the patient-level data points, where each feature is the mean of the VOI values for that patient. The key observation is that the classes (Others (light blue) and HL (light orange/red)) appear highly, if not perfectly, separated in this low-dimensional feature space. This high separability in the aggregated (Embedded-Space) data directly explains the reported perfect scores (100% Accuracy/F1) for the ES models, confirming the suspicion of over-discrimination or data leakage due to the feature aggregation strategy
 ---
 
 ## Output Files
 
-### Visualizations (7 PNG files)
+### Visualizations (9 PNG files)
 - `performance_comparison_A.png` - Dataset A results
 - `performance_comparison_B.png` - Dataset B results
 - `cv_demographics_comparison.png` - CV with/without demographics
@@ -222,6 +239,8 @@ This executes three experimental phases:
 - `all_phases_comparison.png` - Complete overview
 - `IS_summary.png` - SHAP feature importance
 - `IS_bar.png` - SHAP ranking
+- `voi_distribution_A41_A49.png` - VOI distribution for A41/A49 
+- **`pat_scatter_A41_mean_A49_mean.png`** - Patient level scatter plot 
 
 ### Data Files
 - `summary_complete.json` - Complete numerical results
@@ -281,41 +300,45 @@ XGBClassifier(
 ---
 
 ## Known Issues & Recommendations
+---
 
-### 1. Embedded-Space Overfitting
-**Issue**: ES shows perfect accuracy (100%) on both internal and external validation.
+### 1. Embedded-Space (ES) Over-Discrimination
 
-**Possible Causes**:
-- Small dataset size relative to feature dimensionality
-- Feature aggregation creates too-distinctive patient signatures
-- Potential data leakage
+**Issue**: The ES model consistently achieves perfect accuracy (100% Acc/F1) on both internal and external validation sets. This result is highly suspicious of over-discrimination.
+
+**Confirmed Cause**:
+* **Feature Aggregation**: Investigation confirmed that the patient-level feature aggregation strategy (using min, max, mean, and standard deviation of VOI features) creates highly distinct patient signatures. A scatter plot of key aggregated features (e.g., A41\_mean vs. A49\_mean) shows that the two classes are often linearly or near-perfectly separable in the patient-level feature space, confirming the model's over-discrimination in this domain.
 
 **Recommendations**:
-- Use IS models for production (more robust)
-- Investigate ES feature engineering
-- Collect more diverse data
-- Consider nested cross-validation
+* **Primary Model Choice**: Use the Instance-Space (IS) models for any deployment or production use, as their performance is more robust and less prone to over-discrimination.
+* **Feature Engineering**: The core problem lies in the aggregation. Investigate alternative ES feature engineering methods to reduce the separability, such as using fewer aggregation statistics or applying aggressive feature selection on the aggregated features.
+* **Validation**: Collect more diverse data to test the robustness of the ES feature space, and consider nested cross-validation for a more reliable generalization error estimate.
+
+---
 
 ### 2. External Validation Performance Drop
-**Issue**: IS accuracy drops from 81.8% (internal) to 58.3% (external).
+
+**Issue**: IS accuracy drops significantly from 81.8% (internal test set) to 58.3% (external Dataset B).
 
 **Possible Causes**:
-- Dataset shift between A and B
-- Different patient populations
-- Missing features in dataset B
+* Dataset shift between A and B
+* Different patient populations
+* Missing features in Dataset B
 
 **Recommendations**:
-- Top 5 features perform better on external data (61.7% vs 58.3%)
-- Feature selection improves generalization
-- Focus on robust features (region, A41, A49, A29, A92)
+* The model retrained with Top 5 features performs better on external data (61.7% vs 58.3%), suggesting that feature selection improves generalization.
+* Focus on robust features like region, A41, A49, A29, and A92.
+
+---
 
 ### 3. Demographics Impact
-**Observation**: Sex/age improve IS F1 by ~3.5% (71.1% → 68.7%)
+
+**Observation**: Including sex/age demographics improves the Instance-Space F1-score by approximately 3.5% (71.1% → 68.7% in CV).
 
 **Recommendations**:
-- Include demographics when available
-- 78 common patients provide good statistical power
-- Consider sensitivity analysis with different merge strategies
+* Include demographics when available as they offer a measurable performance benefit.
+* The analysis on 78 common patients provides good statistical power for this conclusion.
+* Consider sensitivity analysis with different merge strategies.
 
 ---
 
