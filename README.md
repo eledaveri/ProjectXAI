@@ -245,11 +245,27 @@ In Dataset B, however, the distributions become **less overlapping**, hinting at
 **Dataset B**
 ![Patient Scatter - Dataset B](results/pat_scatter_B_A41_mean_A49_mean.png)
 
- *Comment:*  
+*Comment:*  
 In Dataset A, patient-level means of A41 and A49 still exhibit clear separation between classes, confirming the over-discrimination seen in the ES model.  
 In Dataset B, the scatter plot suggests even stronger linear separability — supporting the hypothesis that **data leakage or phase-specific bias** may amplify ES performance artifacts during external validation.
 
 ---
+
+#### VOI-Level Distribution (A+B)
+![VOI Distribution - A+B](results/voi_distribution_AB_A41_A49.png)
+
+*Interpretation:*  
+When combining datasets A and B, the VOI-level distributions of **A41** and **A49** show a more blended profile between HL and Other classes.  
+This indicates that, once aggregated, **some domain differences are mitigated**, though a partial separation remains—particularly for A41, which shows a right-shifted distribution in HL cases.
+
+---
+
+#### Patient-Level Scatter (A+B)
+![Patient Scatter - A+B](results/pat_scatter_AB_A41_mean_A49_mean.png)
+
+*Comment:*  
+In the aggregated dataset, patient-level means of A41 and A49 continue to exhibit a **clear but not perfect separation** between HL and Other classes.  
+This suggests that while dataset merging improves representation balance, **Embedded-Space (ES) models** may still exploit residual separability in aggregated features—explaining the persistent perfect scores (100% Acc/F1) observed in the summary (`summary_complete.json`).
 
 ### Summary of Extended Findings
 - The **pattern of near-perfect separability** persists across datasets, confirming that overfitting in the ES model is **systematic**, not dataset-specific.  
