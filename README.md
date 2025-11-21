@@ -220,13 +220,42 @@ This executes three experimental phases:
 *Feature importance ranking*
 
 ### 7. Feature Analysis (ES Overfitting Investigation)
-![VOI Distribution](results/voi_distribution_A41_A49.png)
-*Distribution of radiomic features A41 and A49 at the VOI level, colored by class.*
-This plot shows the distribution of the raw (Instance-Space) radiomic features A41 and A49 across the two classes (HL vs. Others). A high degree of overlap between the class distributions here suggests that separation at the individual VOI level is challenging. This explains why the Instance-Space (IS) models are robust but not perfect (F1-score of 50.0% to 80.0% on internal data)
+To further investigate the overfitting behavior of the Embedded-Space (ES) model, we expanded the feature distribution and scatter analyses separately for **Dataset A** (internal) and **Dataset B** (external).  
+The following visualizations help assess whether the observed separability persists across datasets.
 
-![Patient Scatter](results/pat_scatter_A41_mean_A49_mean.png)
-*Scatter plot of the patient-level mean of features A41 vs A49, to investigate excessive separability in the Embedded-Space.*
-This scatter plot shows the patient-level data points, where each feature is the mean of the VOI values for that patient. The key observation is that the classes (Others (light blue) and HL (light orange/red)) appear highly, if not perfectly, separated in this low-dimensional feature space. This high separability in the aggregated (Embedded-Space) data directly explains the reported perfect scores (100% Accuracy/F1) for the ES models, confirming the suspicion of over-discrimination or data leakage due to the feature aggregation strategy
+### VOI-Level Feature Distributions
+
+**Dataset A**
+![VOI Distribution - Dataset A](results/voi_distribution_A_A41_A49.png)
+
+**Dataset B**
+![VOI Distribution - Dataset B](results/voi_distribution_B_A41_A49.png)
+
+*Interpretation:*  
+In Dataset A, the VOI-level distributions of features **A41** and **A49** show moderate overlap between HL and Other classes — consistent with the Instance-Space robustness observed earlier.  
+In Dataset B, however, the distributions become **less overlapping**, hinting at **dataset-specific biases or acquisition differences** that may artificially enhance separability when aggregating features.
+
+---
+
+#### Patient-Level Scatter Analysis
+
+**Dataset A**
+![Patient Scatter - Dataset A](results/pat_scatter_A_A41_mean_A49_mean.png)
+
+**Dataset B**
+![Patient Scatter - Dataset B](results/pat_scatter_B_A41_mean_A49_mean.png)
+
+ *Comment:*  
+In Dataset A, patient-level means of A41 and A49 still exhibit clear separation between classes, confirming the over-discrimination seen in the ES model.  
+In Dataset B, the scatter plot suggests even stronger linear separability — supporting the hypothesis that **data leakage or phase-specific bias** may amplify ES performance artifacts during external validation.
+
+---
+
+### Summary of Extended Findings
+- The **pattern of near-perfect separability** persists across datasets, confirming that overfitting in the ES model is **systematic**, not dataset-specific.  
+- **Dataset B** shows even stronger separation at patient level, suggesting possible **site or acquisition bias**.  
+- Future work: re-balance feature aggregation or use feature standardization per dataset before merging to mitigate this effect.
+
 ---
 
 ## Output Files
