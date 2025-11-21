@@ -310,37 +310,66 @@ def main():
     # ============================================================================
     
     print("\n" + "="*80)
-    print(" INVESTIGATING ES OVERFITTING (A41 vs A49)")
+    print(" INVESTIGATING ES OVERFITTING (A41 vs A49) AND DATASET COMPARISON")
     print("="*80)
     
+    # Helper variables
+    features_to_plot = ["A41", "A49"] 
+    scatter_features = [f"{features_to_plot[0]}_mean", f"{features_to_plot[1]}_mean"]
+    
+    # ----------------------------------------------------------------------------
+    # Dataset A Plots
+    # ----------------------------------------------------------------------------
     # Create patient-level embeddings for dataset_A
     Xp_A_all, yp_A_all = create_patient_embedding(X_A_aligned, y_A, p_ids_A)
-    
-    # Select features A41 and A49 at various aggregation levels
-    features_to_plot = ["A41", "A49"] 
     
     # Plot of feature distributions at VOI level
     plot_feature_distribution(
         X_A_aligned, 
         pd.Series(y_A, index=X_A_aligned.index), 
         features_to_plot, 
-        f"{RESULTS_DIR}/voi_distribution_A41_A49.png"
+        f"{RESULTS_DIR}/voi_distribution_A_A41_A49.png" # Rinominato
     )
 
-    # Scatter plot of feature means at Patient level
-    scatter_features = [f"{features_to_plot[0]}_mean", f"{features_to_plot[1]}_mean"]
-    Xp_filtered = Xp_A_all[[f for f in scatter_features if f in Xp_A_all.columns]].copy()
+    # Scatter plot of feature means at Patient level (Dataset A)
+    Xp_filtered_A = Xp_A_all[[f for f in scatter_features if f in Xp_A_all.columns]].copy()
     
-    if len(Xp_filtered.columns) == 2:
+    if len(Xp_filtered_A.columns) == 2:
         plot_feature_scatter(
-            Xp_filtered, 
+            Xp_filtered_A, 
             yp_A_all, 
             scatter_features, 
-            f"{RESULTS_DIR}/pat_scatter_A41_mean_A49_mean.png"
+            f"{RESULTS_DIR}/pat_scatter_A_A41_mean_A49_mean.png" # Rinominato
         )
     else:
-        print(f"Warning: Could not find required aggregated features for scatter plot: {scatter_features}. Skipping.")
+        print(f"Warning: Could not find required aggregated features for scatter plot in Dataset A: {scatter_features}. Skipping.")
+    
+    # ----------------------------------------------------------------------------
+    # Dataset B Plots (NUOVO)
+    # ----------------------------------------------------------------------------
+    # Create patient-level embeddings for dataset_B
+    Xp_B, yp_B = create_patient_embedding(X_B, y_B, p_ids_B) 
 
+    # Plot of feature distributions at VOI level (Dataset B)
+    plot_feature_distribution(
+        X_B, 
+        pd.Series(y_B, index=X_B.index), 
+        features_to_plot, 
+        f"{RESULTS_DIR}/voi_distribution_B_A41_A49.png"
+    )
+
+    # Scatter plot of feature means at Patient level (Dataset B)
+    Xp_filtered_B = Xp_B[[f for f in scatter_features if f in Xp_B.columns]].copy()
+
+    if len(Xp_filtered_B.columns) == 2:
+        plot_feature_scatter(
+            Xp_filtered_B, 
+            yp_B, 
+            scatter_features, 
+            f"{RESULTS_DIR}/pat_scatter_B_A41_mean_A49_mean.png"
+        )
+    else:
+        print(f"Warning: Could not find required aggregated features for scatter plot in Dataset B: {scatter_features}. Skipping.")
 
     # Save results
     save_report(results, f"{RESULTS_DIR}/summary_complete.json")
@@ -355,15 +384,15 @@ def main():
     print("  3. cv_demographics_comparison.png - CV with/without demographics (F1 & Accuracy)")
     print("  4. demographics_impact.png - Impact of sex/age on performance (% change)")
     print("  5. all_phases_comparison.png - Comprehensive overview of all phases")
-    print("  6. voi_distribution_A41_A49.png - Distribution of A41 and A49 (VOI level)") # Nuovo
-    print("  7. pat_scatter_A41_mean_A49_mean.png - Scatter plot of mean(A41) vs mean(A49) (Patient level)") # Nuovo
+    print("  6. voi_distribution_A_A41_A49.png - Distribution of A41 and A49 (VOI level, Dataset A)")
+    print("  7. pat_scatter_A_A41_mean_A49_mean.png - Scatter plot of mean(A41) vs mean(A49) (Patient level, Dataset A)")
+    print("  8. voi_distribution_B_A41_A49.png - Distribution of A41 and A49 (VOI level, Dataset B)")
+    print("  9. pat_scatter_B_A41_mean_A49_mean.png - Scatter plot of mean(A41) vs mean(A49) (Patient level, Dataset B)")
     print("\n SHAP Analysis:")
-    print("  8. IS_summary.png - SHAP feature importance summary")
-    print("  9. IS_bar.png - SHAP feature importance bar chart")
+    print("  10. IS_summary.png - SHAP feature importance summary")
+    print("  11. IS_bar.png - SHAP feature importance bar chart")
     print("\n Data Files:")
-    print("  10. summary_complete.json - Complete numerical results")
-    
-    print_completion_message()
+    print("  12. summary_complete.json - Complete numerical results")
     
 
 

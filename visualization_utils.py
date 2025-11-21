@@ -638,7 +638,7 @@ def plot_feature_scatter(X, y, feature_names, save_path="results/feature_scatter
 
     # Ensure features exist and are in the dataframe
     X_plot = X[[feat_x, feat_y]].copy()
-    X_plot['target'] = y
+    X_plot['Class'] = np.where(y == 1, 'HL', 'Others')
 
     plt.figure(figsize=(8, 6))
     
@@ -647,7 +647,7 @@ def plot_feature_scatter(X, y, feature_names, save_path="results/feature_scatter
         data=X_plot, 
         x=feat_x, 
         y=feat_y, 
-        hue='target', 
+        hue='Class', 
         palette=['#1f77b4', '#d62728'], 
         alpha=0.6, 
         s=50,
@@ -657,7 +657,7 @@ def plot_feature_scatter(X, y, feature_names, save_path="results/feature_scatter
     plt.title(f'Scatter Plot of {feat_x} vs {feat_y} by Class')
     plt.xlabel(feat_x)
     plt.ylabel(feat_y)
-    plt.legend(title='Class', labels=['Others', 'HL'])
+    #plt.legend(title='Class', labels=['Others', 'HL'])
     plt.grid(True, linestyle='--', alpha=0.5)
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
